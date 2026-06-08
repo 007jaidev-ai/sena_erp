@@ -2,15 +2,71 @@
 
 /* ═══════════════════════════════════════════
    DESIGN TOKENS  (Frappe-var + hex fallbacks)
+   Shared 1:1 with cash_flow_ledger.css so the
+   Planner and Ledger read as one product family.
    ═══════════════════════════════════════════ */
 .cash-flow-wrapper {
+	/* Type scale (base 12px, tabular numerals) */
+	--cf-fs-micro: 9px;
+	--cf-fs-tiny: 10px;
+	--cf-fs-sm: 11px;
+	--cf-fs-base: 12px;
+	--cf-fs-md: 13px;
+	--cf-fs-lg: 15px;
+	--cf-fs-xl: 18px;
+	--cf-fs-2xl: 22px;
+	/* Weights */
+	--cf-fw-med: 500;
+	--cf-fw-semi: 600;
+	--cf-fw-bold: 700;
+	--cf-fw-black: 800;
+	/* Spacing rhythm (4px base) */
+	--cf-sp-1: 4px;
+	--cf-sp-2: 8px;
+	--cf-sp-3: 12px;
+	--cf-sp-4: 16px;
+	--cf-sp-5: 20px;
+	--cf-sp-6: 24px;
+	/* Radii */
+	--cf-r-control: 6px;
+	--cf-r-card: 8px;
+	--cf-r-panel: 10px;
+	--cf-r-pill: 999px;
+	/* Elevation */
+	--cf-shadow-1: 0 1px 2px rgba(15,23,42,0.05);
+	--cf-shadow-2: 0 2px 8px rgba(15,23,42,0.07);
+	--cf-shadow-pop: 0 8px 18px -6px rgba(15,23,42,0.16);
+	--cf-shadow-modal: 0 24px 40px -12px rgba(15,23,42,0.35);
+	/* Surfaces & text (driven by Frappe theme vars) */
+	--cf-surface: var(--fg-color, #ffffff);
+	--cf-surface-2: var(--control-bg, #f8fafc);
+	--cf-surface-3: var(--subtle-accent, #f1f5f9);
+	--cf-border: var(--border-color, #e2e8f0);
+	--cf-border-strong: var(--gray-400, #cbd5e1);
+	--cf-text: var(--text-color, #1f2937);
+	--cf-heading: var(--heading-color, #0f172a);
+	--cf-muted: var(--text-muted, #64748b);
+	/* Semantic colors (load-bearing meanings — keep) */
+	--cf-in: var(--green-600, #16a34a);          /* inflow / receivable / positive */
+	--cf-in-soft: var(--green-50, #ecfdf5);
+	--cf-out: var(--red-600, #dc2626);           /* outflow / payable / negative / overdue */
+	--cf-out-soft: var(--red-50, #fef2f2);
+	--cf-warn: var(--orange-600, #d97706);       /* financing repay / late / soft-limit */
+	--cf-warn-soft: var(--orange-50, #fffbeb);
+	--cf-bd: var(--teal-500, #14b8a6);           /* Bill Discounting */
+	--cf-cc: var(--green-700, #15803d);          /* Cash Credit */
+	--cf-focus: var(--blue-600, #2563eb);        /* selection / horizon / drill / early */
+	--cf-focus-soft: var(--blue-50, #eff6ff);
+	--cf-focus-border: var(--blue-300, #bfdbfe);
+	--cf-contra: var(--purple-700, #7c3aed);     /* contra counterparty */
+
 	font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-	color: var(--text-color, #1f2937);
+	color: var(--cf-text);
 	background-color: var(--control-bg, #f9fafb);
-	padding: 16px 20px;
+	padding: var(--cf-sp-4) var(--cf-sp-5);
 	min-height: 100vh;
 	font-variant-numeric: tabular-nums;
-	font-size: 12px;
+	font-size: var(--cf-fs-base);
 	line-height: 1.5;
 }
 
@@ -88,27 +144,29 @@
 	flex-wrap: wrap;
 }
 .cfp-kpi {
-	background: var(--control-bg, #f8fafc);
-	border: 1px solid var(--border-color, #e2e8f0);
-	border-radius: 8px;
-	padding: 8px 16px;
+	background: var(--cf-surface-2);
+	border: 1px solid var(--cf-border);
+	border-radius: var(--cf-r-card);
+	padding: var(--cf-sp-2) var(--cf-sp-4);
 	min-width: 120px;
 }
 .cfp-kpi-label {
-	font-size: 9px;
-	font-weight: 700;
-	color: var(--text-muted, #6b7280);
+	font-size: var(--cf-fs-micro);
+	font-weight: var(--cf-fw-bold);
+	color: var(--cf-muted);
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
 	margin-bottom: 2px;
 }
 .cfp-kpi-value {
-	font-size: 15px;
-	font-weight: 800;
-	color: var(--green-600, #16a34a);
+	font-size: var(--cf-fs-xl);
+	font-weight: var(--cf-fw-black);
+	color: var(--cf-in);
+	line-height: 1.15;
+	letter-spacing: -0.01em;
 }
-.cfp-kpi-value.negative { color: var(--red-600, #dc2626); }
-.cfp-kpi-neutral { color: var(--text-color, #475569) !important; }
+.cfp-kpi-value.negative { color: var(--cf-out); }
+.cfp-kpi-neutral { color: var(--cf-heading) !important; }
 
 /* Facility limit bars */
 .cfp-limits {
@@ -155,13 +213,14 @@
 	z-index: 1;
 }
 .cfp-bar-fill.warning { background: var(--orange-500, #fbbf24); }
+/* Calmer-but-unmistakable hard-limit danger: solid red + slow gentle pulse */
 .cfp-bar-fill.danger {
 	background: var(--red-500, #ef4444);
-	animation: cfp-pulse-danger 0.7s ease-in-out infinite alternate;
+	animation: cfp-pulse-danger 1.6s ease-in-out infinite;
 }
 @keyframes cfp-pulse-danger {
-	from { opacity: 1; }
-	to { opacity: 0.6; }
+	0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.45); }
+	50%      { box-shadow: 0 0 0 3px rgba(239,68,68,0); }
 }
 .cfp-bar-soft {
 	position: absolute;
@@ -629,48 +688,60 @@
 	transition: all 0.2s ease;
 }
 
-/* MACRO level — months: wide columns */
+/* MACRO level — months: wide columns, a top accent so the level reads at a glance */
 .cf-timeline-column.cfp-level-macro {
 	width: 220px;
+	border-top: 3px solid var(--cf-focus);
 }
 /* MONTH level — weeks: medium */
 .cf-timeline-column.cfp-level-month {
 	width: 200px;
+	border-top: 3px solid var(--cf-bd);
 }
 /* MICRO level — days: narrow */
 .cf-timeline-column.cfp-level-micro {
-	width: 170px;
+	width: 168px;
+	border-top: 3px solid var(--cf-contra);
 }
+/* Per-level header tint reinforces which drill level you're on */
+.cfp-level-macro .cf-column-header { background: var(--cf-focus-soft); }
+.cfp-level-micro .cf-column-header { padding: var(--cf-sp-2) 10px; }
 
 /* Column states */
 .cf-timeline-column.cfp-col-horizon {
-	background: var(--blue-50, #eff6ff);
-	border-color: var(--blue-300, #bfdbfe);
+	background: var(--cf-focus-soft);
+	border-color: var(--cf-focus-border);
+	box-shadow: inset 3px 0 0 var(--cf-focus);
+}
+.cf-timeline-column.cfp-col-horizon .cf-column-header {
+	background: var(--blue-100, #dbeafe);
 }
 .cf-timeline-column.cfp-col-future {
-	opacity: 0.62;
+	opacity: 0.55;
+	filter: saturate(0.85);
 }
 .cf-timeline-column.cfp-col-future:hover {
 	opacity: 1;
+	filter: none;
 }
 .cf-timeline-column.cfp-col-horizon-end {
 	border-right: 2px dashed var(--blue-400, #60a5fa);
 }
 .cf-timeline-column.today-col {
-	border: 2px solid var(--blue-600, #2563eb);
-	box-shadow: 0 0 8px rgba(37, 99, 235, 0.15);
+	border: 2px solid var(--cf-focus);
+	box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 .cf-timeline-column.cfp-col-past {
-	background: var(--gray-100, #f3f4f6);
-	opacity: 0.7;
+	background: var(--cf-surface-2);
+	opacity: 0.65;
 }
 .cf-timeline-column.cfp-col-weekend {
 	background: repeating-linear-gradient(
 		45deg,
 		transparent,
-		transparent 4px,
-		var(--gray-100, #f3f4f6) 4px,
-		var(--gray-100, #f3f4f6) 8px
+		transparent 5px,
+		var(--gray-100, #f3f4f6) 5px,
+		var(--gray-100, #f3f4f6) 10px
 	);
 }
 
@@ -693,28 +764,36 @@
 .cfp-level-micro .cf-column-title { font-size: 11px; }
 
 .cf-column-net {
-	font-size: 11px;
-	font-weight: 700;
-	margin-top: 3px;
+	font-size: var(--cf-fs-md);
+	font-weight: var(--cf-fw-black);
+	margin-top: var(--cf-sp-1);
 }
-.cf-column-net.negative { color: var(--red-600, #dc2626); }
-.cf-column-net.positive { color: var(--green-600, #16a34a); }
+.cf-column-net.negative { color: var(--cf-out); }
+.cf-column-net.positive { color: var(--cf-in); }
 .cf-column-flows {
-	font-size: 9px;
-	color: var(--text-muted, #64748b);
+	font-size: var(--cf-fs-micro);
+	color: var(--cf-muted);
 	margin-top: 2px;
 	display: flex;
 	justify-content: space-between;
+	font-weight: var(--cf-fw-semi);
 }
-.cfp-run {
-	font-size: 10px;
-	font-weight: 700;
-	color: var(--heading-color, #0f172a);
-	margin-top: 3px;
-	background: var(--control-bg, #f1f5f9);
-	padding: 2px 6px;
-	border-radius: 4px;
+/* In (▲) green, out (▼) red — keep the money colors load-bearing */
+.cf-column-flows span:first-child { color: var(--cf-in); }
+.cf-column-flows span:last-child { color: var(--cf-out); }
+/* Running balance pill — keyed to the LIVE .cf-column-balance.
+   This is the money story; make it read clearly. */
+.cf-column-balance {
+	font-size: var(--cf-fs-sm);
+	font-weight: var(--cf-fw-bold);
+	color: var(--cf-heading);
+	margin-top: var(--cf-sp-2);
+	background: var(--cf-surface-3);
+	border: 1px solid var(--cf-border);
+	padding: 3px 8px;
+	border-radius: var(--cf-r-control);
 	text-align: right;
+	font-variant-numeric: tabular-nums;
 }
 
 /* Column body — droppable area */
@@ -776,292 +855,227 @@
 /* ═══════════════════════════════════════════
    BLOCK / CARD  (the money unit)
    ═══════════════════════════════════════════ */
-.cfp-block {
-	background: var(--fg-color, #ffffff);
-	border: 1px solid var(--border-color, #e2e8f0);
-	border-radius: 5px;
-	padding: 8px 10px;
+/* Base card — keyed to the LIVE .cf-block-item the JS renders.
+   (The old .cfp-block taxonomy in the spec is never emitted.) */
+.cf-block-item {
+	background: var(--cf-surface);
+	border: 1px solid var(--cf-border);
+	border-radius: var(--cf-r-control);
+	padding: var(--cf-sp-2) 10px var(--cf-sp-2) 12px;
 	cursor: grab;
-	transition: all 0.12s ease;
-	box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+	transition: border-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease, opacity 0.12s ease;
+	box-shadow: var(--cf-shadow-1);
 	position: relative;
 	user-select: none;
-	border-left: 3px solid var(--gray-300, #d1d5db);
+	border-left: 3px solid var(--cf-border-strong);
 }
-/* Type-colored left border */
-.cfp-block.cfp-type-pay { border-left-color: var(--red-500, #ef4444); }
-.cfp-block.cfp-type-rec { border-left-color: var(--green-500, #10b981); }
-.cfp-block.cfp-type-cc { border-left-color: var(--green-700, #15803d); }
-.cfp-block.cfp-type-bd { border-left-color: var(--teal-500, #14b8a6); }
-.cfp-block.cfp-type-cc_repay { border-left-color: var(--orange-500, #f59e0b); }
-.cfp-block.cfp-type-bd_repay { border-left-color: var(--orange-600, #d97706); }
+/* Drag affordance — grip dots fade in on hover */
+.cf-block-item::before {
+	content: "⠿";
+	position: absolute;
+	left: 3px;
+	top: 50%;
+	transform: translateY(-50%);
+	font-size: 11px;
+	line-height: 1;
+	color: var(--cf-border-strong);
+	opacity: 0;
+	transition: opacity 0.12s;
+	pointer-events: none;
+}
+.cf-block-item:hover::before { opacity: 0.8; }
 
-.cfp-block:hover {
-	border-color: var(--gray-400, #9ca3af);
-	box-shadow: 0 4px 6px -1px rgba(0,0,0,0.08);
+/* Type-colored left border (cf-type-* class added in JS) */
+.cf-block-item.cf-type-pay { border-left-color: var(--cf-out); }
+.cf-block-item.cf-type-rec { border-left-color: var(--cf-in); }
+.cf-block-item.cf-type-cc  { border-left-color: var(--cf-cc); }
+.cf-block-item.cf-type-bd  { border-left-color: var(--cf-bd); }
+.cf-block-item.cf-type-cc_repay { border-left-color: var(--cf-warn); }
+.cf-block-item.cf-type-bd_repay { border-left-color: var(--orange-700, #c2410c); }
+
+.cf-block-item:hover {
+	border-color: var(--cf-border-strong);
+	box-shadow: var(--cf-shadow-2);
 	transform: translateY(-1px);
 }
-.cfp-block:active {
-	cursor: grabbing;
-}
+.cf-block-item:active { cursor: grabbing; }
 
-/* Placed / dimmed state */
-.cfp-block.cfp-placed {
-	opacity: 0.45;
+/* Placed state — scheduled onto the calendar (class added in JS) */
+.cf-block-item.cfp-placed {
+	opacity: 0.5;
 	border-style: dashed;
 	cursor: pointer;
+	box-shadow: none;
 }
-.cfp-block.cfp-placed:hover {
-	opacity: 0.7;
-}
-.cfp-block.cfp-placed .cfp-placed-label {
-	display: block;
-}
-.cfp-placed-label {
-	display: none;
-	font-size: 8px;
-	font-weight: 700;
-	color: var(--blue-600, #2563eb);
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-	margin-top: 2px;
-}
+.cf-block-item.cfp-placed:hover { opacity: 0.82; transform: none; }
 
-/* Dimmed by filter */
-.cfp-block.cfp-dimmed {
-	opacity: 0.28;
-}
+/* Dimmed by filter (class added in JS) */
+.cf-block-item.cfp-dimmed { opacity: 0.28; pointer-events: none; }
 
 /* Flash locate animation */
-.cfp-block.cfp-flash {
+.cf-block-item.cfp-flash {
 	animation: cfp-locate-flash 1.4s ease-out;
 }
 @keyframes cfp-locate-flash {
-	0%   { background: var(--blue-100, #dbeafe); box-shadow: 0 0 12px rgba(37,99,235,0.4); }
-	100% { background: var(--fg-color, #ffffff); box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+	0%   { background: var(--blue-100, #dbeafe); box-shadow: 0 0 0 3px rgba(37,99,235,0.35); }
+	100% { background: var(--cf-surface); box-shadow: var(--cf-shadow-1); }
 }
 
-/* Block header */
-.cfp-block-head {
+/* Card header row */
+.cf-block-header {
 	display: flex;
 	justify-content: space-between;
-	align-items: flex-start;
-	margin-bottom: 3px;
-}
-.cfp-block-head-left {
-	display: flex;
 	align-items: center;
-	gap: 5px;
+	gap: var(--cf-sp-2);
 	min-width: 0;
 }
-.cfp-block-head-right {
-	display: flex;
-	align-items: center;
-	gap: 5px;
-	flex-shrink: 0;
-}
+.cf-block-header > .cf-flex-align { min-width: 0; }
 
-/* Type tag */
-.cfp-type {
-	font-size: 8px;
-	font-weight: 800;
-	padding: 1px 4px;
+/* Type badge tag (PAY / REC) */
+.cf-block-badge {
+	font-size: var(--cf-fs-micro);
+	font-weight: var(--cf-fw-black);
+	padding: 1px 5px;
 	border-radius: 3px;
 	text-transform: uppercase;
+	letter-spacing: 0.03em;
 	flex-shrink: 0;
 }
-.cfp-type.pay { background: var(--red-50, #fee2e2); color: var(--red-700, #b91c1c); }
-.cfp-type.rec { background: var(--green-50, #d1fae5); color: var(--green-700, #065f46); }
-.cfp-type.cc  { background: var(--green-50, #d1fae5); color: var(--green-700, #15803d); }
-.cfp-type.bd  { background: #ccfbf1; color: #0d9488; }
-.cfp-type.cc_repay { background: var(--orange-50, #fffbeb); color: var(--orange-700, #c2410c); }
-.cfp-type.bd_repay { background: var(--orange-50, #fffbeb); color: var(--orange-700, #c2410c); }
+.cf-block-badge.pay { background: var(--cf-out-soft); color: var(--red-700, #b91c1c); }
+.cf-block-badge.rec { background: var(--cf-in-soft); color: var(--green-700, #047857); }
 
-/* Entity name */
-.cfp-block-name {
-	font-size: 11px;
-	font-weight: 600;
-	color: var(--heading-color, #334155);
+/* Entity / party name */
+.cf-block-party {
+	font-size: var(--cf-fs-sm);
+	font-weight: var(--cf-fw-semi);
+	color: var(--cf-heading);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	min-width: 0;
 }
 
-/* Flags */
-.cfp-flag {
-	cursor: pointer;
-	font-size: 12px;
-	transition: color 0.1s;
+/* Flag icons (★ priority, ⏱ late) — inline color set by JS for on/off */
+.cf-block-icon {
+	font-size: 13px;
+	line-height: 1;
+	transition: transform 0.1s;
 }
-.cfp-flag.active-priority { color: var(--orange-500, #eab308); }
-.cfp-flag.active-overdue { color: var(--orange-500, #f97316); }
-.cfp-flag.inactive { color: var(--gray-300, #cbd5e1); }
+.cf-block-icon:hover { transform: scale(1.18); }
 
-/* Block actions (⋮ menu, ↩ merge) */
-.cfp-block-actions {
-	display: flex;
-	align-items: center;
-	gap: 3px;
-}
-.cfp-block-btn {
-	cursor: pointer;
-	font-size: 11px;
-	color: var(--text-muted, #94a3b8);
-	padding: 1px 3px;
+/* ⋮ move menu */
+.cf-block-menu {
+	font-size: var(--cf-fs-base);
+	line-height: 1;
+	padding: 0 2px;
 	border-radius: 3px;
-	transition: all 0.1s;
+	transition: background 0.1s, color 0.1s;
 }
-.cfp-block-btn:hover {
-	background: var(--control-bg, #f1f5f9);
-	color: var(--heading-color, #1e293b);
+.cf-block-menu:hover { background: var(--cf-surface-3); color: var(--cf-heading) !important; }
+
+/* Grouped-summary expander arrow */
+.cf-block-arrow-toggle {
+	color: var(--cf-muted);
+	font-size: var(--cf-fs-micro);
+	line-height: 1;
 }
 
-/* Drag handle */
-.cfp-drag-handle {
-	cursor: grab;
-	color: var(--gray-300, #cbd5e1);
-	font-size: 10px;
-	margin-right: 4px;
-	flex-shrink: 0;
-}
-.cfp-drag-handle:hover { color: var(--text-muted, #94a3b8); }
-
-/* Block ID */
-.cfp-block-id {
-	font-size: 9px;
+/* Mono invoice id line */
+.cf-block-details {
+	font-size: var(--cf-fs-micro);
 	font-family: 'Courier New', monospace;
-	color: var(--text-muted, #94a3b8);
-	margin-bottom: 2px;
+	color: var(--cf-muted);
+	margin-top: var(--cf-sp-1);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
-/* Due date */
-.cfp-due {
-	font-size: 9px;
-	color: var(--text-muted, #64748b);
-}
-
-/* Timing pill */
-.cfp-timing {
-	font-size: 8px;
-	font-weight: 700;
-	padding: 1px 4px;
+/* LATE timing pill */
+.cf-block-late-pill {
+	font-size: var(--cf-fs-micro);
+	font-weight: var(--cf-fw-bold);
+	padding: 1px 5px;
 	border-radius: 3px;
-}
-.cfp-timing.late {
-	background: var(--orange-50, #fffbeb);
-	color: var(--orange-600, #b45309);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	background: var(--cf-warn-soft);
+	color: var(--cf-warn);
 	border: 1px solid var(--orange-100, #fde68a);
 }
-.cfp-timing.early {
-	background: var(--blue-50, #eff6ff);
-	color: var(--blue-600, #2563eb);
-	border: 1px solid var(--blue-100, #dbeafe);
-}
 
-/* Block where badge (which column it lives in) */
-.cfp-block-where {
-	font-size: 8px;
-	color: var(--text-muted, #94a3b8);
-	background: var(--control-bg, #f1f5f9);
-	padding: 1px 4px;
-	border-radius: 3px;
-}
-
-/* Value row */
-.cfp-block-val-row {
+/* Amount row (single card) */
+.cf-block-amount-row {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	margin-top: 3px;
+	margin-top: var(--cf-sp-2);
+	padding-top: var(--cf-sp-1);
+	border-top: 1px solid var(--cf-surface-3);
 }
 
-/* Editable value input */
-.cfp-val {
-	width: 50px;
-	padding: 2px 4px;
-	border: 1px solid var(--blue-300, #93c5fd);
-	border-radius: 3px;
-	font-weight: 700;
+/* Read-only amount (₹ … L). On single cards it wraps the editable input. */
+.cf-block-amount {
+	font-size: var(--cf-fs-md);
+	font-weight: var(--cf-fw-bold);
+	color: var(--cf-heading);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+}
+
+/* Editable amount input — visually distinct from read-only text */
+.cf-card-amount-input {
+	width: 58px;
+	padding: 2px 5px;
+	border: 1px solid var(--cf-focus-border);
+	border-radius: 4px;
+	font-weight: var(--cf-fw-bold);
 	text-align: right;
 	font-family: inherit;
-	font-size: 11px;
-	background: var(--blue-50, #eff6ff);
-	color: var(--heading-color, #0f172a);
+	font-size: var(--cf-fs-sm);
+	background: var(--cf-focus-soft);
+	color: var(--cf-heading);
 	outline: none;
-	transition: all 0.15s;
+	transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 	font-variant-numeric: tabular-nums;
+	-moz-appearance: textfield;
 }
-.cfp-val:focus {
-	border-color: var(--blue-500, #3b82f6);
-	background: var(--fg-color, #ffffff);
-	box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
-}
-
-/* Read-only value */
-.cfp-block-val-readonly {
-	font-size: 11px;
-	font-weight: 700;
-	color: var(--heading-color, #0f172a);
-	font-variant-numeric: tabular-nums;
+.cf-card-amount-input::-webkit-outer-spin-button,
+.cf-card-amount-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.cf-card-amount-input:hover { border-color: var(--cf-focus); }
+.cf-card-amount-input:focus {
+	border-color: var(--cf-focus);
+	background: var(--cf-surface);
+	box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
 }
 
-/* Block amount (for grouped summary cards) */
-.cf-block-amount {
-	font-size: 11px;
-	font-weight: 700;
-	color: var(--heading-color, #1e3a8a);
-}
+/* Grouped summary card */
+.cf-block-item.grouped-summary { background: var(--cf-surface-2); cursor: grab; }
 
-/* Contra badge */
-.cfp-contra-chip {
-	font-size: 8px;
-	font-weight: 800;
-	color: var(--purple-700, #7c3aed);
-	background: var(--purple-100, #ede9fe);
-	padding: 0 3px;
-	border-radius: 2px;
-	cursor: help;
-}
-
-/* Split fragment merge-back button */
-.cfp-merge-back {
-	font-size: 10px;
-	color: var(--orange-600, #d97706);
-	cursor: pointer;
-	font-weight: 700;
-	padding: 1px 4px;
-	border-radius: 3px;
-	border: 1px solid var(--orange-100, #fde68a);
-	background: var(--orange-50, #fffbeb);
-}
-.cfp-merge-back:hover {
-	background: var(--orange-100, #fde68a);
-}
-
-/* Grouped summary card style */
-.cfp-block.grouped-summary {
-	background: var(--control-bg, #f8fafc);
-}
-
-/* Expandable children inside folders */
-.cfp-folder-children {
-	margin-top: 6px;
-	border-top: 1px dashed var(--border-color, #e2e8f0);
-	padding-top: 4px;
+/* Expandable child invoice list inside a grouped card */
+.cf-block-expanded-list {
+	margin-top: var(--cf-sp-2);
+	border-top: 1px dashed var(--cf-border);
+	padding-top: var(--cf-sp-1);
 	display: flex;
 	flex-direction: column;
 	gap: 3px;
 }
-.cfp-child-item {
-	font-size: 9px;
+.cf-child-invoice-item {
+	font-size: var(--cf-fs-micro);
 	display: flex;
 	justify-content: space-between;
-	color: var(--text-muted, #475569);
-	padding: 2px 4px;
-	background: var(--control-bg, #f8fafc);
-	border-radius: 2px;
+	gap: var(--cf-sp-2);
+	color: var(--cf-muted);
+	padding: 2px 5px;
+	background: var(--cf-surface-2);
+	border-radius: 3px;
 }
+.cf-child-invoice-item span { font-family: 'Courier New', monospace; }
+.cf-child-invoice-item strong { color: var(--cf-heading); }
 
 /* SortableJS ghost */
 .sortable-ghost {
@@ -1454,9 +1468,21 @@
 [data-theme="dark"] .cf-table th {
 	background: var(--control-bg);
 }
-[data-theme="dark"] .cfp-block {
+[data-theme="dark"] .cf-block-item,
+[data-theme="dark"] .cf-block-item.grouped-summary {
 	background: var(--fg-color);
 	border-color: var(--border-color);
+}
+[data-theme="dark"] .cf-card-amount-input {
+	background: rgba(37, 99, 235, 0.14);
+	color: var(--text-color);
+}
+[data-theme="dark"] .cf-column-balance {
+	background: rgba(148, 163, 184, 0.12);
+}
+[data-theme="dark"] .cf-timeline-column.cfp-col-past,
+[data-theme="dark"] .cf-timeline-column.cfp-col-weekend {
+	background: rgba(148, 163, 184, 0.08);
 }
 [data-theme="dark"] .cf-alert-demo {
 	background: rgba(251, 191, 36, 0.1);

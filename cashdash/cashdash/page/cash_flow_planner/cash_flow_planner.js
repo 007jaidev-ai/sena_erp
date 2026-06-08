@@ -876,7 +876,7 @@ class CashFlowPlanner {
 		// If multiple invoices, return a simplified summary row card without input box, clock, or stars
 		if (g.count > 1) {
 			var item = $(`
-				<div class="cf-block-item grouped-summary" draggable="true" data-invoice-id="${g.name}" id="blk-card-${g.party_id}">
+				<div class="cf-block-item grouped-summary cf-type-${type}" draggable="true" data-invoice-id="${g.name}" id="blk-card-${g.party_id}">
 					<div class="cf-block-header cf-flex-between">
 						<div class="cf-flex cf-flex-align">
 							${arrow_toggle}
@@ -911,7 +911,7 @@ class CashFlowPlanner {
 		var amount_field = `<input type="number" step="0.01" class="cf-card-amount-input" data-invoice-id="${g.name}" value="${amount_l}">`;
 
 		var item = $(`
-			<div class="cf-block-item" draggable="true" data-invoice-id="${g.name}" id="blk-card-${g.party_id}">
+			<div class="cf-block-item cf-type-${type}" draggable="true" data-invoice-id="${g.name}" id="blk-card-${g.party_id}">
 				<div class="cf-block-header">
 					<div class="cf-flex cf-flex-align">
 						<span class="cf-block-badge ${badge_class}">${badge_lbl}</span>
@@ -984,7 +984,7 @@ class CashFlowPlanner {
 			var net_sign = net_flow >= 0 ? '+' : '';
 			
 			var col = $(`
-				<div class="cf-timeline-column" data-col-key="${m.key}">
+				<div class="cf-timeline-column cfp-level-macro" data-col-key="${m.key}">
 					<div class="cf-column-header">
 						<div class="cf-flex-between">
 							<span class="cf-column-title">${m.label}</span>
@@ -1034,6 +1034,7 @@ class CashFlowPlanner {
 
 		var base_cash = this.opening_balance * 100000;
 		var running_cash = base_cash;
+		var horizon_weeks = parseInt(this.horizon) || 6;
 
 		weeks.forEach((w, idx) => {
 			var pay_flow = 0;
@@ -1063,9 +1064,17 @@ class CashFlowPlanner {
 			
 			var net_class = net_flow < 0 ? 'negative' : 'positive';
 			var net_sign = net_flow >= 0 ? '+' : '';
-			
+
+			// Horizon focus band vs dimmed future (first N weeks = horizon).
+			// Only shade when a future portion actually exists to contrast against.
+			var span_class = '';
+			if (horizon_weeks < weeks.length) {
+				span_class = idx < horizon_weeks ? 'cfp-col-horizon' : 'cfp-col-future';
+				if (idx === horizon_weeks - 1) { span_class += ' cfp-col-horizon-end'; }
+			}
+
 			var col = $(`
-				<div class="cf-timeline-column" data-col-key="${w.key}">
+				<div class="cf-timeline-column cfp-level-month ${span_class}" data-col-key="${w.key}">
 					<div class="cf-column-header">
 						<div class="cf-flex-between">
 							<span class="cf-column-title">${w.label}</span>
@@ -1161,11 +1170,11 @@ class CashFlowPlanner {
 			var net_class = net_flow < 0 ? 'negative' : 'positive';
 			var net_sign = net_flow >= 0 ? '+' : '';
 			
-			var today_class = d.status === 'TODAY' ? 'today-col' : '';
+			var today_class = d.status === 'TODAY' ? 'today-col' : (d.status === 'PAST' ? 'cfp-col-past' : '');
 			var status_badge = d.status ? `<span class="cf-pill ${d.status === 'TODAY' ? 'due-future' : 'overdue'}" style="font-size: 8px; padding: 1px 4px; margin-left: 6px;">${d.status}</span>` : '';
-			
+
 			var col = $(`
-				<div class="cf-timeline-column ${today_class}" data-col-key="${d.key}">
+				<div class="cf-timeline-column cfp-level-micro ${today_class}" data-col-key="${d.key}">
 					<div class="cf-column-header">
 						<div class="cf-flex cf-flex-align">
 							<span class="cf-column-title" style="font-size: 11px;">${d.label}</span>
