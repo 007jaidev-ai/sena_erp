@@ -1,6 +1,8 @@
 import frappe
 import json
 import os
+import csv
+import io
 from datetime import datetime, timedelta
 
 @frappe.whitelist()
@@ -37,20 +39,34 @@ def get_planner_data(base_date="2026-06-03"):
 	payables = merge_invoices(real_payables, synthetic_payables, config.get("notes", {}), config.get("custom_amounts", {}), base_date)
 	receivables = merge_invoices(real_receivables, synthetic_receivables, config.get("notes", {}), config.get("custom_amounts", {}), base_date)
 
+	# Detect contra parties
+	contra_parties = get_contra_parties(payables, receivables)
+
 	return {
 		"payables": payables,
 		"receivables": receivables,
 		"config": config,
 		"supplier_groups": supplier_groups,
-		"customer_groups": customer_groups
+		"customer_groups": customer_groups,
+		"contra_parties": contra_parties
 	}
 
 @frappe.whitelist()
-def save_planner_data(opening_balance, horizon, scenario, schedules, notes, cc_utilization=0, bd_utilization=0, custom_amounts=None):
+def save_planner_data(opening_balance, horizon, scenario, schedules, notes, cc_utilization=0, bd_utilization=0, custom_amounts=None, fragments=None):
 	"""
 	Saves the planner configurations and schedules to a local JSON file.
 	"""
 	config_path = get_config_file_path()
+
+	# Load existing data to preserve saved_plans
+	existing = {}
+	if os.path.exists(config_path):
+		try:
+			with open(config_path, "r") as f:
+				existing = json.load(f)
+		except Exception:
+			pass
+
 	data = {
 		"opening_balance": float(opening_balance or 0),
 		"horizon": horizon,
@@ -58,8 +74,10 @@ def save_planner_data(opening_balance, horizon, scenario, schedules, notes, cc_u
 		"schedules": json.loads(schedules or "{}"),
 		"notes": json.loads(notes or "{}"),
 		"custom_amounts": json.loads(custom_amounts or "{}"),
+		"fragments": json.loads(fragments or "{}"),
 		"cc_utilization": float(cc_utilization or 0),
-		"bd_utilization": float(bd_utilization or 0)
+		"bd_utilization": float(bd_utilization or 0),
+		"saved_plans": existing.get("saved_plans", {})
 	}
 	
 	with open(config_path, "w") as f:
@@ -91,6 +109,10 @@ def load_persisted_config():
 				cfg = json.load(f)
 				if "custom_amounts" not in cfg:
 					cfg["custom_amounts"] = {}
+				if "fragments" not in cfg:
+					cfg["fragments"] = {}
+				if "saved_plans" not in cfg:
+					cfg["saved_plans"] = {}
 				return cfg
 		except Exception:
 			pass
@@ -122,6 +144,8 @@ def load_persisted_config():
 			"ACC-SINV-2026-00003": "Followed up, promised by 15th"
 		},
 		"custom_amounts": {},
+		"fragments": {},
+		"saved_plans": {},
 		"cc_utilization": 0,
 		"bd_utilization": 0
 	}
@@ -319,3 +343,186 @@ def get_synthetic_receivables(base_date_str):
 	return invoices
 
 
+def get_contra_parties(payables, receivables):
+	"""
+	Detects party names that appear in both payables and receivables.
+	Returns a sorted list of contra-party names.
+	"""
+	payable_parties = {inv["party"] for inv in payables}
+	receivable_parties = {inv["party"] for inv in receivables}
+
+	# Also check from DB if real doctypes have overlapping suppliers/customers
+	db_contra = set()
+	try:
+		supplier_names = {d.supplier_name for d in frappe.get_all("Supplier", fields=["supplier_name"])}
+		customer_names = {d.customer_name for d in frappe.get_all("Customer", fields=["customer_name"])}
+		db_contra = supplier_names & customer_names
+	except Exception:
+		pass
+
+	contra = (payable_parties & receivable_parties) | db_contra
+	return sorted(list(contra))
+
+
+@frappe.whitelist()
+def save_named_plan(plan_name):
+	"""
+	Saves the current planner config as a named plan.
+	The plan is stored under saved_plans[plan_name] in the JSON config file.
+	"""
+	if not plan_name or not plan_name.strip():
+		frappe.throw("Plan name is required")
+
+	plan_name = plan_name.strip()
+	config_path = get_config_file_path()
+	config = load_persisted_config()
+
+	# Snapshot the current working state (everything except saved_plans itself)
+	snapshot = {
+		"opening_balance": config.get("opening_balance", 0),
+		"horizon": config.get("horizon", "6 wks"),
+		"scenario": config.get("scenario", "Realistic"),
+		"schedules": config.get("schedules", {}),
+		"notes": config.get("notes", {}),
+		"custom_amounts": config.get("custom_amounts", {}),
+		"fragments": config.get("fragments", {}),
+		"cc_utilization": config.get("cc_utilization", 0),
+		"bd_utilization": config.get("bd_utilization", 0),
+		"saved_at": datetime.now().isoformat()
+	}
+
+	if "saved_plans" not in config:
+		config["saved_plans"] = {}
+
+	config["saved_plans"][plan_name] = snapshot
+
+	with open(config_path, "w") as f:
+		json.dump(config, f, indent=4)
+
+	return {"status": "success", "message": f"Plan '{plan_name}' saved successfully"}
+
+
+@frappe.whitelist()
+def load_named_plan(plan_name):
+	"""
+	Loads and returns the data for a previously saved named plan.
+	"""
+	if not plan_name or not plan_name.strip():
+		frappe.throw("Plan name is required")
+
+	plan_name = plan_name.strip()
+	config = load_persisted_config()
+	saved_plans = config.get("saved_plans", {})
+
+	if plan_name not in saved_plans:
+		frappe.throw(f"Plan '{plan_name}' not found")
+
+	return saved_plans[plan_name]
+
+
+@frappe.whitelist()
+def delete_named_plan(plan_name):
+	"""
+	Deletes a previously saved named plan.
+	"""
+	if not plan_name or not plan_name.strip():
+		frappe.throw("Plan name is required")
+
+	plan_name = plan_name.strip()
+	config_path = get_config_file_path()
+	config = load_persisted_config()
+	saved_plans = config.get("saved_plans", {})
+
+	if plan_name not in saved_plans:
+		frappe.throw(f"Plan '{plan_name}' not found")
+
+	del saved_plans[plan_name]
+	config["saved_plans"] = saved_plans
+
+	with open(config_path, "w") as f:
+		json.dump(config, f, indent=4)
+
+	return {"status": "success", "message": f"Plan '{plan_name}' deleted successfully"}
+
+
+@frappe.whitelist()
+def list_named_plans():
+	"""
+	Returns a list of saved plan names with their timestamps.
+	"""
+	config = load_persisted_config()
+	saved_plans = config.get("saved_plans", {})
+
+	plans = []
+	for name, data in saved_plans.items():
+		plans.append({
+			"plan_name": name,
+			"saved_at": data.get("saved_at", ""),
+			"scenario": data.get("scenario", ""),
+			"horizon": data.get("horizon", "")
+		})
+
+	# Sort by saved_at descending (most recent first)
+	plans.sort(key=lambda x: x.get("saved_at", ""), reverse=True)
+	return plans
+
+
+@frappe.whitelist()
+def export_planner_csv(base_date="2026-06-03"):
+	"""
+	Generates a CSV string of all payables and receivables for export.
+	Columns: Party, Invoice, Ref No, Bill Date, Credit Term, Final Date,
+	         Value, Outstanding, Scheduled To, Type, Status
+	Returns the CSV content as a string.
+	"""
+	data = get_planner_data(base_date)
+	payables = data.get("payables", [])
+	receivables = data.get("receivables", [])
+	config = data.get("config", {})
+	schedules = config.get("schedules", {})
+
+	output = io.StringIO()
+	writer = csv.writer(output)
+
+	# Header row
+	writer.writerow([
+		"Party", "Invoice", "Ref No", "Bill Date", "Credit Term",
+		"Final Date", "Value", "Outstanding", "Scheduled To", "Type", "Status"
+	])
+
+	# Write payables
+	for inv in payables:
+		writer.writerow([
+			inv.get("party", ""),
+			inv.get("name", ""),
+			inv.get("ref_no", ""),
+			inv.get("bill_date", ""),
+			inv.get("credit_term", ""),
+			inv.get("final_date", ""),
+			inv.get("value", 0),
+			inv.get("outstanding", 0),
+			schedules.get(inv.get("name", ""), ""),
+			"Payable",
+			inv.get("payment_status", "")
+		])
+
+	# Write receivables
+	for inv in receivables:
+		writer.writerow([
+			inv.get("party", ""),
+			inv.get("name", ""),
+			inv.get("ref_no", ""),
+			inv.get("bill_date", ""),
+			inv.get("credit_term", ""),
+			inv.get("final_date", ""),
+			inv.get("value", 0),
+			inv.get("outstanding", 0),
+			schedules.get(inv.get("name", ""), ""),
+			"Receivable",
+			inv.get("payment_status", "")
+		])
+
+	csv_content = output.getvalue()
+	output.close()
+
+	return csv_content

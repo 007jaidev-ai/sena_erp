@@ -1,0 +1,169 @@
+{
+  "$schema": "https://sena.local/schemas/ui-design-spec.v1.json",
+  "meta": {
+    "name": "Cash Flow Planner",
+    "id": "cashflow-planner-demo",
+    "kind": "Frappe Desk Page",
+    "purpose": "Drag-and-drop scheduling of payables, receivables, and bank-facility draws/repayments onto a multi-year calendar, with a live running cash balance, lowest-cash detection, and facility-limit guards.",
+    "audience": "Finance controller / CFO-office operator. Numerate, fast, impatient.",
+    "scope": "UI/UX polish only. No feature or logic changes.",
+    "companionDoc": "cashflow-planner-design-brief.md"
+  },
+  "techConstraints": {
+    "framework": "vanilla JS + jQuery, no SPA framework",
+    "dragDrop": "SortableJS",
+    "styling": "single injected <style id='cfp-demo-styles'> block; embedded Credit Terms table uses its own injected styles keyed to 'sct-*'",
+    "theming": "MUST use Frappe theme CSS variables (var(--green-600), var(--bg-blue), var(--control-bg), ...). Light AND dark mode must both work. Hex fallbacks alongside vars are allowed.",
+    "domStability": "Prefer restyling existing classes or adding modifier classes. Avoid renaming/removing classes; styles are keyed to them.",
+    "noNewDeps": true,
+    "widthModes": ["embedded narrow side panel (~constrained)", "full Desk width"]
+  },
+  "layout": {
+    "model": "4 stacked zones; the middle zone is a 3-column grid",
+    "zones": [
+      {
+        "id": "monitor",
+        "role": "Zone C — status + controls",
+        "class": "cfp-monitor",
+        "sticky": true,
+        "contains": ["toolbar (undo/redo, opening balance, horizon select, Merge/Save/Plans/Export/Reset)", "title + breadcrumb", "KPIs (Horizon Net, Lowest Cash, Unscheduled)", "negative-cash warning bar", "two facility bars (CC, BD)"]
+      },
+      {
+        "id": "body",
+        "role": "Zone A+B — work surface",
+        "class": "cfp-body",
+        "grid": "236px | minmax(0,1fr) | 236px",
+        "contains": ["left reservoir (payables & financing)", "center timeline", "right reservoir (receivables)"]
+      },
+      {
+        "id": "timeline",
+        "role": "Zone B — the calendar board (dominant surface)",
+        "class": "cfp-timeline",
+        "levels": ["macro = months of one year (paged by ◀ year ▶)", "month = weeks of one month", "micro = days of one week"]
+      },
+      {
+        "id": "compare",
+        "role": "Zone D — per-invoice Credit Terms table (reference detail; overview widgets intentionally suppressed)",
+        "class": "cfp-compare",
+        "embeds": "SenaCreditTerms.CreditTermsShell with showTicker:false, showCompare:false"
+      }
+    ]
+  },
+  "colorSemantics": {
+    "note": "Load-bearing meanings — recolor for polish but keep what each hue MEANS.",
+    "green": "inflow / receivable / positive cash / within facility limit",
+    "red": "outflow / payable / negative cash / overdue / hard-limit breach",
+    "orange": "financing repayment / 'late' timing / soft-limit warning",
+    "teal": "Bill Discounting (BD)",
+    "darkGreen": "Cash Credit (CC)",
+    "blue": "selection / horizon focus band / drill affordance / 'early' timing / placed-card hover",
+    "purple": "contra counterparty (both customer and vendor)",
+    "muted": "secondary labels, ids, ranges, sub-text"
+  },
+  "designTokensCurrent": {
+    "note": "What the build uses today, as a starting point to refine.",
+    "typography": {
+      "base": "12px",
+      "tabularNums": true,
+      "scale": {
+        "kpiValue": "15px/700",
+        "title": "13px/700",
+        "yearToggle": "14px/800",
+        "columnNet": "12px/700",
+        "cardName": "11px/600",
+        "label": "9-10px/600 uppercase tracked",
+        "microLabel": "8-9px/800 uppercase tracked"
+      },
+      "monoFor": ["block ids"]
+    },
+    "radius": { "card": "3px", "panel": "4px", "control": "3-4px", "pill": "11px", "yearBtn": "5px" },
+    "border": "1px solid var(--border-color) almost everywhere; 3px colored left-border on cards and reservoir folders; 3px colored top-border on reservoirs",
+    "spacing": { "zoneGap": "8px", "laneGap": "6px", "innerPad": "4-10px" },
+    "frappeVarsUsed": ["--text-color", "--text-muted", "--heading-color", "--fg-color", "--control-bg", "--border-color", "--subtle-accent", "--green-50/500/600/700", "--red-50/300/500/600/700", "--orange-50/100/500/600/700", "--teal-500", "--blue-50/100/300/400/500/600/700", "--bg-blue", "--purple-100/400/700", "--gray-100/200/300/400/700/800"],
+    "motion": ["120ms sortable drag", "1.4s flash on locate", "0.7s flashing red on hard-limit breach"]
+  },
+  "components": [
+    {
+      "name": "Monitor / status strip",
+      "classes": ["cfp-monitor", "cfp-toolbar", "cfp-mon-row", "cfp-mon-kpis", "cfp-kpi", "cfp-warn-bar"],
+      "purpose": "At-a-glance state + global actions",
+      "improve": "Should read as a calm header, not compete with the board. Make the 3 KPIs and the negative-cash warning the most salient elements."
+    },
+    {
+      "name": "Facility bar",
+      "classes": ["cfp-limits", "cfp-lim", "cfp-bar", "cfp-bar-fill", "cfp-bar-soft"],
+      "purpose": "CC / BD usage vs soft & absolute limits",
+      "states": ["ok (green fill)", "soft (orange fill, msg)", "hard (red flashing fill, locked)"],
+      "improve": "Make soft-marker and the ok/soft/hard escalation clearer; flashing red may be too aggressive — propose a calmer but unmistakable danger treatment."
+    },
+    {
+      "name": "Reservoir (inbox)",
+      "classes": ["cfp-reservoir", "cfp-side-pay", "cfp-side-rec", "cfp-res-head", "cfp-search", "cfp-pills", "cfp-pill", "cfp-folder", "cfp-folder-head", "cfp-folder-body"],
+      "purpose": "Lists unscheduled blocks as collapsible per-counterparty folders; left=payables/financing, right=receivables",
+      "states": ["folder open/closed", "contra folder (purple)", "filter pill active/inactive", "empty drop zone"],
+      "improve": "Reduce competition between folder head, count, total, and cards. Quieter chrome, stronger card scannability. Works in ~236px."
+    },
+    {
+      "name": "Calendar column",
+      "classes": ["cfp-col", "cfp-month-col", "cfp-col-head", "cfp-col-stats", "cfp-col-count", "cfp-col-body", "cfp-drill", "cfp-run", "cfp-col-horizon", "cfp-col-future", "cfp-col-horizon-end"],
+      "purpose": "One month/week/day; shows net, ▲in/▼out, running Σ, block count, Drill, and a droppable body",
+      "states": ["horizon (shaded blue focus band)", "future (dimmed .62, brightens on hover)", "horizon-end (dashed divider)", "day: past/today/weekend/holiday", "empty drop body"],
+      "improve": "Differentiate the 3 drill levels visually; make horizon-vs-future obvious without reading; clarify the running-balance pill."
+    },
+    {
+      "name": "Year toggle",
+      "classes": ["cfp-year-nav", "cfp-year-arrow", "cfp-year-sel", "cfp-year-net"],
+      "purpose": "Page the macro calendar between years (current → ~2035)",
+      "improve": "Make it feel like a confident primary calendar control; show year-net clearly; disabled bounds states."
+    },
+    {
+      "name": "Block / card",
+      "classes": ["cfp-block", "cfp-type", "cfp-block-name", "cfp-flag", "cfp-block-actions", "cfp-block-btn", "cfp-block-id", "cfp-due", "cfp-timing", "cfp-block-where", "cfp-block-val", "cfp-val", "cfp-block-edit"],
+      "purpose": "One unit of money (invoice / facility line). Type tag, entity, flags, id, due date, timing pill, editable ₹ value (Lakhs), move/merge controls",
+      "types": ["payable (PAY)", "receivable (REC)", "cc (CC)", "bd (BD)", "cc_repay (CC↩)", "bd_repay (BD↩)"],
+      "states": ["editable/unplaced (draggable, value input)", "placed (grey/dashed, click-to-locate)", "dimmed (filtered-out, .28)", "split fragment (has ↩ merge-back)", "flag: priority ★ / overdue ⏱", "timing: late (orange) / early (blue)", "flash (just located)"],
+      "improve": "Most cramped element. Establish clear card rhythm; make editable-value vs read-only-value obviously different; signpost drag handle and ⋮/↩ controls; calm the tag/flag/badge clutter."
+    },
+    {
+      "name": "Embedded Credit Terms table",
+      "classes": ["cfp-cmp-head", "cfp-cmp-btn", "cfp-cmp-mount", "sct-*"],
+      "purpose": "Per-invoice reference detail (sortable table, mode toggle, approval/note editor). Overview KPI tickers + net-position compare strip are intentionally OFF here.",
+      "improve": "Should read as quiet reference under the board; header + 'Open full tool ↗' link to the standalone v2 demo. Keep table legible but subordinate."
+    }
+  ],
+  "interactions": {
+    "drag": "SortableJS; drag a card from a reservoir or column body onto a calendar column (or month → auto-settles to the week of its due date). Same-list drops snap back.",
+    "drillDown": "Click a column's Drill ▸ : year→month→week→day. Breadcrumb + back button climb one level.",
+    "valueEdit": "Type a new ₹ (Lakhs) value; reducing it splits the card into a kept piece + a residual fragment (fragment has ↩ to merge back).",
+    "moveMenu": "⋮ opens a menu of placement targets (reservoir + horizon weeks, or days within a week).",
+    "filters": "Per-side search + pills (★ Priority, ▲ High Value, ⏱ Overdue); non-matching placed cards dim live.",
+    "locate": "Clicking a placed card jumps to where it lives and flashes it.",
+    "guards": "Facility hard-limit blocks an over-limit drop; soft-limit warns; past-date drop asks for confirmation; weekend/holiday drop warns."
+  },
+  "painPoints": [
+    "Uniform weight/size/border → no clear focal point; primary signals don't pop.",
+    "Weak hierarchy across the 4 zones; the board should dominate.",
+    "The 3 calendar drill levels look nearly identical; users lose their place.",
+    "Horizon focus band vs dimmed future columns is too subtle.",
+    "Reservoirs are busy in a narrow column.",
+    "Cards are cramped; editable vs read-only value not distinct.",
+    "Many encoded states (placed/dimmed/overdue/late/early/past/weekend/holiday) are easy to miss.",
+    "Tight at constrained sidebar width.",
+    "Drag/click/control affordances under-signposted."
+  ],
+  "improvementGoals": [
+    { "priority": 1, "goal": "Visual hierarchy: board first, monitor as calm status strip, reservoirs as quiet inboxes, table as reference." },
+    { "priority": 2, "goal": "Make the money story pop: running balance, lowest-cash point, negative warning, and limit breaches most salient." },
+    { "priority": 3, "goal": "Differentiate macro/month/micro levels and horizon-vs-future at a glance." },
+    { "priority": 4, "goal": "Calmer, more scannable cards and reservoir folders; obvious editable vs locked and placed vs unplaced." },
+    { "priority": 5, "goal": "Stronger, friendlier drag affordances and empty/drop states." },
+    { "priority": 6, "goal": "Dense-but-breathable rhythm; graceful narrow-width and full dark-mode parity." }
+  ],
+  "deliverables": [
+    "Refined visual system (type scale, spacing rhythm, weight contrast, border/elevation, theme-var palette, focus/hover) as CSS mapping onto existing cfp-* / sct-* classes.",
+    "Zone-by-zone redesign notes with before/after: monitor/KPI strip, calendar columns (3 levels), reservoir folders, block card.",
+    "Full component-state spec (card, column, facility bar, empty/drop, buttons/pills).",
+    "Annotated mockups for macro / month / micro views + a single card + a reservoir folder.",
+    "Responsive/narrow-width notes and dark-mode parity notes."
+  ]
+}
