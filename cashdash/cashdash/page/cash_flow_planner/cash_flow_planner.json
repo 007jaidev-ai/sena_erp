@@ -1,0 +1,19 @@
+{
+ "doctype": "Page",
+ "name": "cash-flow-planner",
+ "page_name": "cash_flow_planner",
+ "title": "Cash Flow Planner",
+ "module": "Cashdash",
+ "standard": "Yes",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Accounts User"
+  },
+  {
+   "role": "Accounts Manager"
+  }
+ ]
+}

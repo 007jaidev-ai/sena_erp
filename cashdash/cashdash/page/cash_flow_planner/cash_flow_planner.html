@@ -1,0 +1,446 @@
+<div class="cash-flow-wrapper">
+	
+
+	<!-- Main Header Action Belt -->
+	<div class="cf-header cf-flex-between">
+		<div class="cf-title-section cf-flex-align">
+			<div>
+				<h1 id="cf-title-display">Cash Flow Planner</h1>
+				<div class="cf-subtitle" id="cf-subtitle-display">AVINASH Industries</div>
+			</div>
+			<div class="cf-alert-demo">DEMO - live invoices, planning only</div>
+		</div>
+		
+		<div class="cf-flex cf-gap-10 cf-flex-align">
+			<div class="cf-control-group">
+				<label for="cf-opening-cash">Opening</label>
+				<input type="number" step="0.01" class="cf-input" id="cf-opening-cash" value="80.00" style="width: 80px;">
+				<span style="font-size: 13px; font-weight: 600; color: #4b5563;">L</span>
+			</div>
+			<div class="cf-control-group">
+				<label for="cf-horizon">Horizon</label>
+				<select class="cf-select" id="cf-horizon">
+					<option value="4 wks">4 wks</option>
+					<option value="6 wks" selected>6 wks</option>
+					<option value="12 wks">12 wks</option>
+				</select>
+			</div>
+			
+			<div class="cf-flex cf-gap-10" style="margin-left: 10px;">
+				<button class="cf-btn" id="cf-btn-merge">Merge</button>
+				<button class="cf-btn cf-btn-primary" id="cf-btn-save">Save</button>
+				<button class="cf-btn" id="cf-btn-plans">Plans</button>
+				<button class="cf-btn" id="cf-btn-export">Export</button>
+				<button class="cf-btn cf-btn-danger" id="cf-btn-reset">Reset</button>
+			</div>
+
+			<button class="cf-btn cf-btn-warning" id="cf-btn-view-toggle" style="margin-left: 15px; display: inline-flex; align-items: center; gap: 6px;">
+				<span>Plan</span>
+			</button>
+		</div>
+	</div>
+
+	<!-- Dashboard summary row (CC/BD Limits + KPI counts) -->
+	<div class="cf-flex cf-gap-20" style="margin-bottom: 20px;">
+		<!-- CC & BD sliders -->
+		<div class="cf-grow" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+			<div class="cf-gauge-card">
+				<div class="cf-gauge-header">
+					<span>CASH CREDIT (CC)</span>
+					<span id="cc-gauge-text">₹0 / ₹6.00Cr</span>
+				</div>
+				<div class="cf-gauge-bar-wrapper">
+					<div class="cf-gauge-fill" id="cc-gauge-fill" style="width: 0%;"></div>
+				</div>
+				<div class="cf-gauge-footer" id="cc-gauge-subtext">Within facility</div>
+			</div>
+			<div class="cf-gauge-card">
+				<div class="cf-gauge-header">
+					<span>BILL DISCOUNTING (BD)</span>
+					<span id="bd-gauge-text">₹0 / ₹4.00Cr</span>
+				</div>
+				<div class="cf-gauge-bar-wrapper">
+					<div class="cf-gauge-fill" id="bd-gauge-fill" style="width: 0%;"></div>
+				</div>
+				<div class="cf-gauge-footer" id="bd-gauge-subtext">Within facility</div>
+			</div>
+		</div>
+
+		<!-- Horizon Net, Lowest Cash and Unscheduled Metrics -->
+		<div style="background: #ffffff; border-radius: 12px; padding: 12px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); min-width: 320px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #e5e7eb;">
+			<div>
+				<div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Horizon Net <span id="hdr-horizon-label">(6 wks)</span></div>
+				<div style="font-size: 16px; font-weight: 800; color: #16a34a;" id="hdr-horizon-net">₹1.82Cr</div>
+			</div>
+			<div style="border-left: 1px solid #e5e7eb; height: 35px; margin: 0 12px;"></div>
+			<div>
+				<div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Lowest Cash <span id="hdr-lowest-label">(Week 1)</span></div>
+				<div style="font-size: 16px; font-weight: 800; color: #16a34a;" id="hdr-lowest-cash">₹69.79L</div>
+			</div>
+			<div style="border-left: 1px solid #e5e7eb; height: 35px; margin: 0 12px;"></div>
+			<div>
+				<div style="font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Unscheduled</div>
+				<div style="font-size: 16px; font-weight: 800; color: #475569; text-align: center;" id="hdr-unscheduled-count">77</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- ==================== LEDGER VIEW CONTAINER ==================== -->
+	<div class="cf-ledger-container" id="cf-ledger-container">
+		
+		<!-- Sub-navigation view toggle -->
+		<div class="cf-view-toggle-nav cf-flex-between">
+			<div class="cf-flex cf-gap-10">
+				<button class="cf-view-tab active" data-tab="payables">Vendors - Payables</button>
+				<button class="cf-view-tab" data-tab="receivables">Customers - Receivables</button>
+				<button class="cf-view-tab" data-tab="side-by-side">Side by side</button>
+			</div>
+			<div style="font-size: 12px; color: #6b7280; font-style: italic;" id="cf-tab-explainer">
+				Assumed credit terms (Net 0-90) applied.
+			</div>
+		</div>
+
+		<!-- Outstanding Net summary banner -->
+		<div class="cf-net-summary-banner cf-flex-between">
+			<div>
+				Receivables outstanding <strong id="lbl-receivables-total">₹4,36,04,254</strong> vs 
+				Payables outstanding <strong id="lbl-payables-total">₹2,93,11,019</strong>
+			</div>
+			<div>
+				Net <span class="cf-net-badge" id="lbl-net-difference">+₹1,42,93,235</span> 
+				<span style="margin-left: 8px; color: #4b5563; font-size: 12px;" id="lbl-net-verdict">Receivables cover payables with a surplus.</span>
+			</div>
+		</div>
+
+		<!-- Standard Full-width lists -->
+		<div id="cf-ledger-single-view">
+			<!-- KPI statistics cards -->
+			<div class="cf-stats-grid" id="cf-kpi-deck">
+				<!-- Invoices count -->
+				<div class="cf-stat-card payable-outstanding">
+					<div class="cf-stat-label" id="kpi-1-label">Invoices</div>
+					<div class="cf-stat-value" id="kpi-1-val">248</div>
+					<div class="cf-stat-sub" id="kpi-1-sub">50 suppliers</div>
+				</div>
+				<!-- Order/Invoice Value -->
+				<div class="cf-stat-card">
+					<div class="cf-stat-label" id="kpi-2-label">Order Value</div>
+					<div class="cf-stat-value" id="kpi-2-val">₹2,93,14,051</div>
+					<div class="cf-stat-sub" id="kpi-2-sub">submitted PIs</div>
+				</div>
+				<!-- Outstanding -->
+				<div class="cf-stat-card payable-outstanding">
+					<div class="cf-stat-label" id="kpi-3-label">Outstanding</div>
+					<div class="cf-stat-value" id="kpi-3-val">₹2,93,11,019</div>
+					<div class="cf-stat-sub" id="kpi-3-sub">still payable</div>
+				</div>
+				<!-- Overdue count -->
+				<div class="cf-stat-card overdue">
+					<div class="cf-stat-label" id="kpi-4-label">Overdue</div>
+					<div class="cf-stat-value" id="kpi-4-val">113</div>
+					<div class="cf-stat-sub" id="kpi-4-sub">as of 2026-06-03</div>
+				</div>
+			</div>
+
+			<!-- Filters pane -->
+			<div class="cf-filters-panel">
+				<input type="text" class="cf-search-input" id="ledger-search-input" placeholder="Search supplier, invoice, ref...">
+				
+				<select class="cf-select" id="ledger-group-select">
+					<option value="">All groups</option>
+				</select>
+				
+				<select class="cf-select" id="ledger-sort-select">
+					<option value="final_date">Sort: Final date</option>
+					<option value="value">Sort: Value</option>
+					<option value="outstanding">Sort: Outstanding</option>
+					<option value="bill_date">Sort: Bill date</option>
+					<option value="party">Sort: Name</option>
+				</select>
+
+				<button class="cf-btn" id="ledger-btn-sort-dir">↑ Asc</button>
+
+				<label class="cf-flex-align" style="font-size: 13px; font-weight: 500; cursor: pointer; gap: 6px;">
+					<input type="checkbox" id="ledger-chk-overdue">
+					Overdue only
+				</label>
+				
+				<div style="margin-left: auto; font-size: 12px; color: #64748b; font-weight: 600;" id="lbl-records-count">
+					248 of 248
+				</div>
+			</div>
+
+			<!-- Active Sorted By Tags -->
+			<div class="cf-sorted-by-container" id="ledger-sorted-by-tags">
+				SORTED BY:
+				<!-- Tags appended dynamically -->
+			</div>
+
+			<!-- Main list table -->
+			<div class="cf-table-container">
+				<table class="cf-table" id="ledger-table">
+					<thead>
+						<tr>
+							<th data-col="party">SUPPLIER</th>
+							<th data-col="name">INVOICE</th>
+							<th data-col="ref_no">REF NO</th>
+							<th data-col="bill_date">BILL DATE</th>
+							<th data-col="credit_term">CREDIT TERM</th>
+							<th data-col="final_date">FINAL DATE</th>
+							<th data-col="value">ORDER VALUE</th>
+							<th data-col="outstanding">OUTSTANDING</th>
+							<th data-col="payment_status">PAYMENT</th>
+							<th>APPROVAL / NOTE</th>
+						</tr>
+					</thead>
+					<tbody id="ledger-table-body">
+						<!-- Invoices dynamically populated -->
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<!-- Split Screen (Side by side) view -->
+		<div class="cf-split-screen cf-hidden" id="cf-ledger-split-view">
+			<!-- Payables Pane (Left) -->
+			<div class="cf-split-pane" id="pane-payables">
+				<div class="cf-split-title">Payables — what we owe vendors</div>
+				<!-- Mini KPIs -->
+				<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;">
+					<div class="cf-stat-card payable-outstanding" style="padding: 8px 10px;">
+						<div class="cf-stat-label" style="font-size: 9px;">Invoices</div>
+						<div class="cf-stat-value" style="font-size: 14px;" id="split-pay-kpi-invoices">248</div>
+					</div>
+					<div class="cf-stat-card" style="padding: 8px 10px;">
+						<div class="cf-stat-label" style="font-size: 9px;">Value</div>
+						<div class="cf-stat-value" style="font-size: 14px;" id="split-pay-kpi-value">₹2.93Cr</div>
+					</div>
+					<div class="cf-stat-card payable-outstanding" style="padding: 8px 10px;">
+						<div class="cf-stat-label" style="font-size: 9px;">Outstanding</div>
+						<div class="cf-stat-value" style="font-size: 14px;" id="split-pay-kpi-outstanding">₹2.93Cr</div>
+					</div>
+					<div class="cf-stat-card overdue" style="padding: 8px 10px;">
+						<div class="cf-stat-label" style="font-size: 9px;">Overdue</div>
+						<div class="cf-stat-value" style="font-size: 14px;" id="split-pay-kpi-overdue">113</div>
+					</div>
+				</div>
+				<!-- Filter Row -->
+				<div class="cf-filters-panel" style="margin-bottom: 8px;">
+					<input type="text" class="cf-search-input" id="split-pay-search" placeholder="Search..." style="padding: 6px 10px; font-size: 12px;">
+					<select class="cf-select" id="split-pay-group" style="padding: 5px; font-size: 12px;"></select>
+				</div>
+				<!-- Table -->
+				<div class="cf-table-container" style="max-height: 400px; overflow-y: auto;">
+					<table class="cf-table" id="split-pay-table" style="font-size: 12px;">
+						<thead>
+							<tr>
+								<th data-col="party">SUPPLIER</th>
+								<th data-col="name">INVOICE</th>
+								<th data-col="final_date">FINAL DATE</th>
+								<th data-col="outstanding">OUTSTANDING</th>
+								<th data-col="payment_status">PAYMENT</th>
+								<th>ACTION</th>
+							</tr>
+						</thead>
+						<tbody id="split-pay-table-body"></tbody>
+					</table>
+				</div>
+			</div>
+
+			<!-- Receivables Pane (Right) -->
+			<div class="cf-split-pane" id="pane-receivables">
+				<div class="cf-split-title">Receivables — what customers owe us</div>
+				<!-- Mini KPIs -->
+				<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;">
+					<div class="cf-stat-card receivable-outstanding" style="padding: 8px 10px;">
+						<div class="cf-stat-label" style="font-size: 9px;">Invoices</div>
+						<div class="cf-stat-value" style="font-size: 14px;" id="split-rec-kpi-invoices">78</div>
+					</div>
+					<div class="cf-stat-card" style="padding: 8px 10px;">
+						<div class="cf-stat-label" style="font-size: 9px;">Value</div>
+						<div class="cf-stat-value" style="font-size: 14px;" id="split-rec-kpi-value">₹4.36Cr</div>
+					</div>
+					<div class="cf-stat-card receivable-outstanding" style="padding: 8px 10px;">
+						<div class="cf-stat-label" style="font-size: 9px;">Outstanding</div>
+						<div class="cf-stat-value" style="font-size: 14px;" id="split-rec-kpi-outstanding">₹4.36Cr</div>
+					</div>
+					<div class="cf-stat-card overdue" style="padding: 8px 10px;">
+						<div class="cf-stat-label" style="font-size: 9px;">Overdue</div>
+						<div class="cf-stat-value" style="font-size: 14px;" id="split-rec-kpi-overdue">35</div>
+					</div>
+				</div>
+				<!-- Filter Row -->
+				<div class="cf-filters-panel" style="margin-bottom: 8px;">
+					<input type="text" class="cf-search-input" id="split-rec-search" placeholder="Search..." style="padding: 6px 10px; font-size: 12px;">
+					<select class="cf-select" id="split-rec-group" style="padding: 5px; font-size: 12px;"></select>
+				</div>
+				<!-- Table -->
+				<div class="cf-table-container" style="max-height: 400px; overflow-y: auto;">
+					<table class="cf-table" id="split-rec-table" style="font-size: 12px;">
+						<thead>
+							<tr>
+								<th data-col="party">CUSTOMER</th>
+								<th data-col="name">INVOICE</th>
+								<th data-col="final_date">FINAL DATE</th>
+								<th data-col="outstanding">OUTSTANDING</th>
+								<th data-col="payment_status">PAYMENT</th>
+								<th>ACTION</th>
+							</tr>
+						</thead>
+						<tbody id="split-rec-table-body"></tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+
+	</div>
+
+	<!-- ==================== PLANNER VIEW CONTAINER ==================== -->
+	<div class="cf-planner-container cf-hidden" id="cf-planner-container">
+		
+		<!-- Calendar breadcrumbs and timeline selectors -->
+		<div class="cf-flex-between" style="background: #ffffff; border-radius: 8px; padding: 10px 20px; margin-bottom: 15px; border: 1px solid #e2e8f0;">
+			<div class="cf-flex cf-flex-align cf-gap-10">
+				<button class="cf-btn cf-btn-primary" id="planner-calendar-btn" style="display: flex; align-items: center; gap: 6px;">
+					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+					<span id="planner-calendar-level-text">Calendar</span>
+				</button>
+				<span style="font-size: 13px; font-weight: 600; color: #475569;" id="planner-breadcrumb-path">
+					Calendar · 115 months · 501 wks · horizon 6 wks → 12-07
+				</span>
+			</div>
+			
+			<div class="cf-flex cf-flex-align cf-gap-10">
+				<!-- Navigation buttons (previous, next, drill-up) -->
+				<button class="cf-btn" id="planner-btn-prev">&lt;</button>
+				<select class="cf-select" id="planner-year-select" style="font-weight: 700; padding: 4px 10px;">
+					<option value="2026">2026</option>
+					<option value="2027">2027</option>
+				</select>
+				<button class="cf-btn" id="planner-btn-next">&gt;</button>
+
+				<span style="font-size: 13px; font-weight: 700; color: #16a34a; margin-left: 10px;" id="planner-net-horizon-val">
+					2026 net ₹1.82Cr
+				</span>
+			</div>
+		</div>
+
+		<!-- Cockpit Planner Grid -->
+		<div class="cf-planner-cockpit">
+			
+			<!-- Left Drawer: PAYABLES & FINANCING (Unscheduled) -->
+			<div class="cf-planner-sidebar" id="planner-drawer-payables">
+				<div class="cf-sidebar-header">
+					<div class="cf-flex-between">
+						<span class="cf-sidebar-title">PAYABLES & FINANCING</span>
+						<span class="cf-block-count" id="drawer-pay-count">0</span>
+					</div>
+					<div class="cf-sidebar-subtitle">Unscheduled · what we owe + facility draws / repayments</div>
+					
+					<input type="text" class="cf-search-input" id="drawer-pay-search" placeholder="Search entity or block id..." style="margin-top: 10px; width: 100%; box-sizing: border-box; padding: 6px 10px;">
+					
+					<div class="cf-flex cf-gap-10" style="margin-top: 8px;">
+						<button class="cf-btn" id="drawer-pay-btn-priority" style="font-size: 10px; padding: 2px 6px;">★ Priority</button>
+						<button class="cf-btn" id="drawer-pay-btn-high" style="font-size: 10px; padding: 2px 6px;">▲ High Value</button>
+						<button class="cf-btn" id="drawer-pay-btn-overdue" style="font-size: 10px; padding: 2px 6px;">⏱ Overdue</button>
+					</div>
+				</div>
+
+				<!-- Scheduled for later section inside sidebar -->
+				<div style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 10px 14px;">
+					<div class="cf-flex-between" style="cursor: pointer;" id="sidebar-later-pay-header">
+						<span style="font-size: 12px; font-weight: 700; color: #475569;">Scheduled for later...</span>
+						<span style="font-size: 11px; font-weight: 700; color: #64748b;" id="sidebar-later-pay-val">126 · ₹14.17Cr</span>
+					</div>
+				</div>
+
+				<div class="cf-sidebar-body" id="drawer-pay-body">
+					<!-- Populated by JS -->
+				</div>
+			</div>
+
+			<!-- Center timeline: months, weeks or days columns -->
+			<div class="cf-planner-timeline" id="planner-timeline-cols">
+				<!-- Dynamically populated by JS: 4-5 columns -->
+			</div>
+
+			<!-- Right Drawer: RECEIVABLES (Unscheduled) -->
+			<div class="cf-planner-sidebar" id="planner-drawer-receivables">
+				<div class="cf-sidebar-header">
+					<div class="cf-flex-between">
+						<span class="cf-sidebar-title">RECEIVABLES</span>
+						<span class="cf-block-count" id="drawer-rec-count">0</span>
+					</div>
+					<div class="cf-sidebar-subtitle">Unscheduled · what customers owe us · amount editable</div>
+					
+					<input type="text" class="cf-search-input" id="drawer-rec-search" placeholder="Search entity or block id..." style="margin-top: 10px; width: 100%; box-sizing: border-box; padding: 6px 10px;">
+					
+					<div class="cf-flex cf-gap-10" style="margin-top: 8px;">
+						<button class="cf-btn" id="drawer-rec-btn-priority" style="font-size: 10px; padding: 2px 6px;">★ Priority</button>
+						<button class="cf-btn" id="drawer-rec-btn-high" style="font-size: 10px; padding: 2px 6px;">▲ High Value</button>
+						<button class="cf-btn" id="drawer-rec-btn-overdue" style="font-size: 10px; padding: 2px 6px;">⏱ Overdue</button>
+					</div>
+				</div>
+
+				<!-- Scheduled for later section inside sidebar -->
+				<div style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 10px 14px;">
+					<div class="cf-flex-between" style="cursor: pointer;" id="sidebar-later-rec-header">
+						<span style="font-size: 12px; font-weight: 700; color: #475569;">Scheduled for later...</span>
+						<span style="font-size: 11px; font-weight: 700; color: #64748b;" id="sidebar-later-rec-val">33 · ₹2.95Cr</span>
+					</div>
+				</div>
+
+				<div class="cf-sidebar-body" id="drawer-rec-body">
+					<!-- Populated by JS -->
+				</div>
+			</div>
+
+		</div>
+
+		<!-- Scenario Controller Section -->
+		<div class="cf-scenario-section">
+			<div class="cf-flex cf-flex-align cf-gap-10">
+				<span style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: #475569;">Scenario State Switching:</span>
+				<div class="cf-flex cf-gap-10" id="cf-scenario-buttons">
+					<button class="cf-btn cf-btn-active" data-scenario="Realistic">Realistic</button>
+					<button class="cf-btn" data-scenario="Optimistic">Optimistic</button>
+					<button class="cf-btn" data-scenario="Stress">Stress</button>
+				</div>
+			</div>
+			<div style="font-size: 12px; color: #64748b;" id="cf-scenario-description">
+				Realistic mode: Calculations reflect standard probability on invoice credit periods.
+			</div>
+		</div>
+
+	</div>
+
+	<!-- ==================== REVIEW / NOTES MODAL ==================== -->
+	<div class="cf-modal-backdrop" id="cf-review-modal">
+		<div class="cf-modal-card">
+			<div class="cf-modal-header">
+				<div class="cf-modal-title" id="modal-invoice-title">Review Invoice Details</div>
+			</div>
+			<div class="cf-modal-body">
+				<div style="font-size: 13px; margin-bottom: 12px;">
+					<span style="color: #64748b;">Invoice Reference:</span> <strong id="modal-lbl-invoice-id">ACC-PINV-2026-00023</strong>
+				</div>
+				<div style="font-size: 13px; margin-bottom: 12px;">
+					<span style="color: #64748b;">Supplier/Customer:</span> <strong id="modal-lbl-party-name">Tata Steel Ltd</strong>
+				</div>
+				<div style="font-size: 13px; margin-bottom: 15px;">
+					<span style="color: #64748b;">Outstanding Value:</span> <strong id="modal-lbl-outstanding">₹14.50L</strong>
+				</div>
+				
+				<div style="display: flex; flex-direction: column; gap: 6px;">
+					<label for="modal-input-notes" style="font-size: 12px; font-weight: 600; color: #475569;">Cheque / UTR / Assignment Notes</label>
+					<textarea id="modal-input-notes" rows="4" style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; font-size: 13px; outline: none; width: 100%; box-sizing: border-box; resize: vertical;" placeholder="Enter cheque number, UTR code, or review notes..."></textarea>
+				</div>
+			</div>
+			<div class="cf-modal-footer">
+				<button class="cf-btn" id="modal-btn-close">Cancel</button>
+				<button class="cf-btn cf-btn-primary" id="modal-btn-save-note">Save changes</button>
+			</div>
+		</div>
+	</div>
+
+</div>
