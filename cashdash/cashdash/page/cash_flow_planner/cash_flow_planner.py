@@ -34,8 +34,8 @@ def get_planner_data(base_date="2026-06-03"):
 	synthetic_receivables = get_synthetic_receivables(base_date)
 
 	# Merge (prefer real if they have same name, but for this demo dashboard, we combine them)
-	payables = merge_invoices(real_payables, synthetic_payables, config.get("notes", {}), base_date)
-	receivables = merge_invoices(real_receivables, synthetic_receivables, config.get("notes", {}), base_date)
+	payables = merge_invoices(real_payables, synthetic_payables, config.get("notes", {}), config.get("custom_amounts", {}), base_date)
+	receivables = merge_invoices(real_receivables, synthetic_receivables, config.get("notes", {}), config.get("custom_amounts", {}), base_date)
 
 	return {
 		"payables": payables,
@@ -46,7 +46,7 @@ def get_planner_data(base_date="2026-06-03"):
 	}
 
 @frappe.whitelist()
-def save_planner_data(opening_balance, horizon, scenario, schedules, notes, cc_utilization=0, bd_utilization=0):
+def save_planner_data(opening_balance, horizon, scenario, schedules, notes, cc_utilization=0, bd_utilization=0, custom_amounts=None):
 	"""
 	Saves the planner configurations and schedules to a local JSON file.
 	"""
@@ -57,6 +57,7 @@ def save_planner_data(opening_balance, horizon, scenario, schedules, notes, cc_u
 		"scenario": scenario,
 		"schedules": json.loads(schedules or "{}"),
 		"notes": json.loads(notes or "{}"),
+		"custom_amounts": json.loads(custom_amounts or "{}"),
 		"cc_utilization": float(cc_utilization or 0),
 		"bd_utilization": float(bd_utilization or 0)
 	}
@@ -87,7 +88,10 @@ def load_persisted_config():
 	if os.path.exists(config_path):
 		try:
 			with open(config_path, "r") as f:
-				return json.load(f)
+				cfg = json.load(f)
+				if "custom_amounts" not in cfg:
+					cfg["custom_amounts"] = {}
+				return cfg
 		except Exception:
 			pass
 	return {
@@ -117,6 +121,7 @@ def load_persisted_config():
 			"ACC-PINV-2026-00001": "Cheque #991023 assigned",
 			"ACC-SINV-2026-00003": "Followed up, promised by 15th"
 		},
+		"custom_amounts": {},
 		"cc_utilization": 0,
 		"bd_utilization": 0
 	}
@@ -175,7 +180,7 @@ def fetch_real_invoices(doctype, base_date_str):
 		})
 	return invoices
 
-def merge_invoices(real, synthetic, saved_notes, base_date_str):
+def merge_invoices(real, synthetic, saved_notes, saved_amounts, base_date_str):
 	# Keyed by name
 	merged = {}
 	
@@ -193,6 +198,9 @@ def merge_invoices(real, synthetic, saved_notes, base_date_str):
 			item["review_notes"] = saved_notes[name]
 		else:
 			item["review_notes"] = ""
+		
+		if name in saved_amounts:
+			item["outstanding"] = float(saved_amounts[name])
 			
 	return list(merged.values())
 

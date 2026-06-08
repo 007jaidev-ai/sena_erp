@@ -1,0 +1,19 @@
+{
+ "doctype": "Page",
+ "name": "cash-flow-ledger",
+ "page_name": "cash_flow_ledger",
+ "title": "Cash Flow Ledger",
+ "module": "Cashdash",
+ "standard": "Yes",
+ "roles": [
+  {
+   "role": "System Manager"
+  },
+  {
+   "role": "Accounts User"
+  },
+  {
+   "role": "Accounts Manager"
+  }
+ ]
+}

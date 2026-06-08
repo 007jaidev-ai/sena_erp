@@ -1,0 +1,231 @@
+<div class="cash-flow-ledger-wrapper">
+	
+	<!-- Header section -->
+	<div class="cf-header cf-flex-between">
+		<div class="cf-title-section">
+			<h1>Cash Flow Ledger</h1>
+			<div class="cf-subtitle">AVINASH Industries · Comprehensive Invoices Ledger</div>
+		</div>
+		<div class="cf-flex cf-gap-10">
+			<a class="cf-btn cf-btn-primary" href="/app/cash-flow-planner" style="text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
+				<span>← Go to Planner</span>
+			</a>
+		</div>
+	</div>
+
+	<!-- Ledger View main tabs -->
+	<div class="cf-view-toggle-nav cf-flex-between">
+		<div class="cf-flex cf-gap-10">
+			<button class="cf-view-tab active" data-tab="payables">Vendors - Payables</button>
+			<button class="cf-view-tab" data-tab="receivables">Customers - Receivables</button>
+			<button class="cf-view-tab" data-tab="side-by-side">Side by side</button>
+		</div>
+		<div style="font-size: 12px; color: #6b7280; font-style: italic;">
+			Comprehensive ledger list supporting Shift-Click multi-sorting.
+		</div>
+	</div>
+
+	<!-- Net summary banner -->
+	<div class="cf-net-summary-banner cf-flex-between">
+		<div>
+			Receivables outstanding <strong id="lbl-receivables-total">₹0</strong> vs 
+			Payables outstanding <strong id="lbl-payables-total">₹0</strong>
+		</div>
+		<div>
+			Net <span class="cf-net-badge" id="lbl-net-difference">₹0</span> 
+			<span style="margin-left: 8px; color: #4b5563; font-size: 12px;" id="lbl-net-verdict">-</span>
+		</div>
+	</div>
+
+	<!-- Single list container -->
+	<div id="cf-ledger-single-view">
+		<!-- KPI cards -->
+		<div class="cf-stats-grid">
+			<div class="cf-stat-card payable-outstanding">
+				<div class="cf-stat-label" id="kpi-1-label">Invoices</div>
+				<div class="cf-stat-value" id="kpi-1-val">0</div>
+				<div class="cf-stat-sub" id="kpi-1-sub">-</div>
+			</div>
+			<div class="cf-stat-card">
+				<div class="cf-stat-label" id="kpi-2-label">Order Value</div>
+				<div class="cf-stat-value" id="kpi-2-val">₹0</div>
+				<div class="cf-stat-sub" id="kpi-2-sub">-</div>
+			</div>
+			<div class="cf-stat-card payable-outstanding">
+				<div class="cf-stat-label" id="kpi-3-label">Outstanding</div>
+				<div class="cf-stat-value" id="kpi-3-val">₹0</div>
+				<div class="cf-stat-sub" id="kpi-3-sub">-</div>
+			</div>
+			<div class="cf-stat-card overdue">
+				<div class="cf-stat-label" id="kpi-4-label">Overdue</div>
+				<div class="cf-stat-value" id="kpi-4-val">0</div>
+				<div class="cf-stat-sub" id="kpi-4-sub">-</div>
+			</div>
+		</div>
+
+		<!-- Filters pane -->
+		<div class="cf-filters-panel">
+			<input type="text" class="cf-search-input" id="ledger-search-input" placeholder="Search supplier, customer, invoice, ref...">
+			<select class="cf-select" id="ledger-group-select">
+				<option value="">All groups</option>
+			</select>
+			<select class="cf-select" id="ledger-sort-select">
+				<option value="final_date">Sort: Final date</option>
+				<option value="value">Sort: Value</option>
+				<option value="outstanding">Sort: Outstanding</option>
+				<option value="bill_date">Sort: Bill date</option>
+				<option value="party">Sort: Name</option>
+			</select>
+			<button class="cf-btn" id="ledger-btn-sort-dir">↑ Asc</button>
+			<label class="cf-flex-align" style="font-size: 13px; font-weight: 500; cursor: pointer; gap: 6px;">
+				<input type="checkbox" id="ledger-chk-overdue">
+				Overdue only
+			</label>
+			<div style="margin-left: auto; font-size: 12px; color: #64748b; font-weight: 600;" id="lbl-records-count">0 of 0</div>
+		</div>
+
+		<!-- Sorted tags list -->
+		<div class="cf-sorted-by-container" id="ledger-sorted-by-tags">
+			SORTED BY:
+		</div>
+
+		<!-- List Table -->
+		<div class="cf-table-container">
+			<table class="cf-table" id="ledger-table">
+				<thead>
+					<tr>
+						<th data-col="party">PARTY</th>
+						<th data-col="name">INVOICE</th>
+						<th data-col="ref_no">REF NO</th>
+						<th data-col="bill_date">BILL DATE</th>
+						<th data-col="credit_term">CREDIT TERM</th>
+						<th data-col="final_date">FINAL DATE</th>
+						<th data-col="value">VALUE</th>
+						<th data-col="outstanding">OUTSTANDING</th>
+						<th data-col="payment_status">PAYMENT</th>
+						<th>APPROVAL / NOTE</th>
+					</tr>
+				</thead>
+				<tbody id="ledger-table-body">
+					<!-- Invoices dynamically populated -->
+				</tbody>
+			</table>
+		</div>
+	</div>
+
+	<!-- Split view -->
+	<div class="cf-split-screen cf-hidden" id="cf-ledger-split-view">
+		<!-- Payables Pane (Left) -->
+		<div class="cf-split-pane" id="pane-payables">
+			<div class="cf-split-title">Payables — what we owe vendors</div>
+			<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;">
+				<div class="cf-stat-card payable-outstanding" style="padding: 8px 10px;">
+					<div class="cf-stat-label" style="font-size: 9px;">Invoices</div>
+					<div class="cf-stat-value" style="font-size: 14px;" id="split-pay-kpi-invoices">0</div>
+				</div>
+				<div class="cf-stat-card" style="padding: 8px 10px;">
+					<div class="cf-stat-label" style="font-size: 9px;">Value</div>
+					<div class="cf-stat-value" style="font-size: 14px;" id="split-pay-kpi-value">₹0.00Cr</div>
+				</div>
+				<div class="cf-stat-card payable-outstanding" style="padding: 8px 10px;">
+					<div class="cf-stat-label" style="font-size: 9px;">Outstanding</div>
+					<div class="cf-stat-value" style="font-size: 14px;" id="split-pay-kpi-outstanding">₹0.00Cr</div>
+				</div>
+				<div class="cf-stat-card overdue" style="padding: 8px 10px;">
+					<div class="cf-stat-label" style="font-size: 9px;">Overdue</div>
+					<div class="cf-stat-value" style="font-size: 14px;" id="split-pay-kpi-overdue">0</div>
+				</div>
+			</div>
+			<div class="cf-filters-panel" style="margin-bottom: 8px;">
+				<input type="text" class="cf-search-input" id="split-pay-search" placeholder="Search..." style="padding: 6px 10px; font-size: 12px;">
+				<select class="cf-select" id="split-pay-group" style="padding: 5px; font-size: 12px;"></select>
+			</div>
+			<div class="cf-table-container" style="max-height: 450px; overflow-y: auto;">
+				<table class="cf-table" id="split-pay-table" style="font-size: 12px;">
+					<thead>
+						<tr>
+							<th data-col="party">SUPPLIER</th>
+							<th data-col="name">INVOICE</th>
+							<th data-col="final_date">FINAL DATE</th>
+							<th data-col="outstanding">OUTSTANDING</th>
+							<th data-col="payment_status">PAYMENT</th>
+							<th>ACTION</th>
+						</tr>
+					</thead>
+					<tbody id="split-pay-table-body"></tbody>
+				</table>
+			</div>
+		</div>
+
+		<!-- Receivables Pane (Right) -->
+		<div class="cf-split-pane" id="pane-receivables">
+			<div class="cf-split-title">Receivables — what customers owe us</div>
+			<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;">
+				<div class="cf-stat-card receivable-outstanding" style="padding: 8px 10px;">
+					<div class="cf-stat-label" style="font-size: 9px;">Invoices</div>
+					<div class="cf-stat-value" style="font-size: 14px;" id="split-rec-kpi-invoices">0</div>
+				</div>
+				<div class="cf-stat-card" style="padding: 8px 10px;">
+					<div class="cf-stat-label" style="font-size: 9px;">Value</div>
+					<div class="cf-stat-value" style="font-size: 14px;" id="split-rec-kpi-value">₹0.00Cr</div>
+				</div>
+				<div class="cf-stat-card receivable-outstanding" style="padding: 8px 10px;">
+					<div class="cf-stat-label" style="font-size: 9px;">Outstanding</div>
+					<div class="cf-stat-value" style="font-size: 14px;" id="split-rec-kpi-outstanding">₹0.00Cr</div>
+				</div>
+				<div class="cf-stat-card overdue" style="padding: 8px 10px;">
+					<div class="cf-stat-label" style="font-size: 9px;">Overdue</div>
+					<div class="cf-stat-value" style="font-size: 14px;" id="split-rec-kpi-overdue">0</div>
+				</div>
+			</div>
+			<div class="cf-filters-panel" style="margin-bottom: 8px;">
+				<input type="text" class="cf-search-input" id="split-rec-search" placeholder="Search..." style="padding: 6px 10px; font-size: 12px;">
+				<select class="cf-select" id="split-rec-group" style="padding: 5px; font-size: 12px;"></select>
+			</div>
+			<div class="cf-table-container" style="max-height: 450px; overflow-y: auto;">
+				<table class="cf-table" id="split-rec-table" style="font-size: 12px;">
+					<thead>
+						<tr>
+							<th data-col="party">CUSTOMER</th>
+							<th data-col="name">INVOICE</th>
+							<th data-col="final_date">FINAL DATE</th>
+							<th data-col="outstanding">OUTSTANDING</th>
+							<th data-col="payment_status">PAYMENT</th>
+							<th>ACTION</th>
+						</tr>
+					</thead>
+					<tbody id="split-rec-table-body"></tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+
+	<!-- Review notes modal -->
+	<div class="cf-modal-backdrop" id="cf-review-modal">
+		<div class="cf-modal-card">
+			<div class="cf-modal-header">
+				<div class="cf-modal-title">Review Invoice Details</div>
+			</div>
+			<div class="cf-modal-body">
+				<div style="font-size: 13px; margin-bottom: 12px;">
+					<span style="color: #64748b;">Invoice Reference:</span> <strong id="modal-lbl-invoice-id">-</strong>
+				</div>
+				<div style="font-size: 13px; margin-bottom: 12px;">
+					<span style="color: #64748b;">Supplier/Customer:</span> <strong id="modal-lbl-party-name">-</strong>
+				</div>
+				<div style="font-size: 13px; margin-bottom: 15px;">
+					<span style="color: #64748b;">Outstanding Value:</span> <strong id="modal-lbl-outstanding">₹0.00L</strong>
+				</div>
+				<div style="display: flex; flex-direction: column; gap: 6px;">
+					<label for="modal-input-notes" style="font-size: 12px; font-weight: 600; color: #475569;">Cheque / UTR / Assignment Notes</label>
+					<textarea id="modal-input-notes" rows="4" style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; font-size: 13px; outline: none; width: 100%; box-sizing: border-box; resize: vertical;" placeholder="Enter cheque number, UTR code, or review notes..."></textarea>
+				</div>
+			</div>
+			<div class="cf-modal-footer">
+				<button class="cf-btn" id="modal-btn-close">Cancel</button>
+				<button class="cf-btn cf-btn-primary" id="modal-btn-save-note">Save changes</button>
+			</div>
+		</div>
+	</div>
+
+</div>
