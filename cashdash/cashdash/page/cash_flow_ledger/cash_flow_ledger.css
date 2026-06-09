@@ -525,3 +525,41 @@
 [data-theme="dark"] .cf-table tbody tr:hover td {
 	background: rgba(148, 163, 184, 0.1);
 }
+
+/* ═══════════════════════════════════════════
+   LOADING / ERROR overlay
+   ═══════════════════════════════════════════ */
+.cash-flow-ledger-wrapper { position: relative; }
+.cf-status-overlay {
+	display: none;
+	position: absolute;
+	inset: 0;
+	z-index: 50;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: var(--cf-sp-3);
+	background: color-mix(in srgb, var(--cf-surface) 82%, transparent);
+	backdrop-filter: blur(1.5px);
+	border-radius: var(--cf-r-panel);
+	text-align: center;
+	padding: var(--cf-sp-5);
+}
+.cf-status-overlay.show { display: flex; }
+.cf-status-msg {
+	font-size: var(--cf-fs-md);
+	font-weight: var(--cf-fw-med);
+	color: var(--cf-muted);
+	max-width: 420px;
+}
+.cf-status-overlay.error .cf-status-msg { color: var(--cf-out); }
+.cf-status-icon { font-size: 28px; line-height: 1; color: var(--cf-out); }
+.cf-spinner {
+	width: 30px;
+	height: 30px;
+	border: 3px solid var(--cf-border);
+	border-top-color: var(--cf-focus);
+	border-radius: 50%;
+	animation: cf-spin 0.7s linear infinite;
+}
+@keyframes cf-spin { to { transform: rotate(360deg); } }

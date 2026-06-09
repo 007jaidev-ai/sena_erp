@@ -278,6 +278,44 @@
 /* ---- Toast ---- */
 .cfp-app .cfp-toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--surface); padding:9px 16px; border-radius:var(--r-pill); font-size:12.5px; font-weight:600; box-shadow:var(--grab-shadow); z-index:2000;}
 
+/* ---- Reservoir control row: curtain + scheduled dropdown ---- */
+.cfp-app .res-ctrl{display:flex; align-items:center; gap:6px; margin-bottom:9px;}
+.cfp-app .res-curtain{font:inherit; font-size:12px; line-height:1; padding:4px 8px; border:1px solid var(--hairline-strong); border-radius:var(--r-control); background:var(--sunken); color:var(--muted); cursor:pointer;}
+.cfp-app .res-curtain:hover{color:var(--ink); background:var(--surface);}
+.cfp-app .sched-wrap{position:relative; margin-left:auto;}
+.cfp-app .reservoir.rec .sched-wrap{margin-left:0; margin-right:auto;}
+.cfp-app .res-sched-btn{font:inherit; font-size:11px; font-weight:600; padding:4px 9px; border:1px solid var(--hairline-strong); border-radius:var(--r-pill); background:var(--sunken); color:var(--muted); cursor:pointer; display:inline-flex; gap:5px; align-items:center; white-space:nowrap;}
+.cfp-app .res-sched-btn:hover{color:var(--ink);}
+.cfp-app .res-sched-btn .cnt{font-family:var(--f-num); font-weight:700; color:var(--sel);}
+/* pay panel: button sits on the right, so grow the menu leftward (into the panel) */
+.cfp-app .sched-menu{width:248px; max-height:320px; overflow-y:auto; left:auto; right:0; padding:4px;}
+/* rec panel: button sits on the left, so grow the menu rightward */
+.cfp-app .reservoir.rec .sched-menu{left:0; right:auto;}
+.cfp-app .sched-head{display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:9.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--faint); padding:6px 8px 7px; border-bottom:1px solid var(--hairline); margin-bottom:3px;}
+.cfp-app .sched-head span{font-family:var(--f-num); font-size:11px;}
+.cfp-app .sched-item{display:flex; align-items:center; gap:8px; padding:7px 9px; border-radius:5px; cursor:pointer; font-size:11.5px;}
+.cfp-app .sched-item:hover{background:var(--sunken);}
+.cfp-app .sched-item .si-name{flex:1; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.cfp-app .sched-item .si-date{font-family:var(--f-num); font-size:9.5px; color:var(--faint);}
+.cfp-app .sched-item .si-amt{font-family:var(--f-num); font-weight:700; font-size:11px;}
+.cfp-app .sched-empty{padding:14px 12px; font-size:11px; color:var(--faint); text-align:center;}
+
+/* ---- Collapsed reservoir rail (curtain shut) ---- */
+.cfp-app .reservoir.collapsed-rail{display:flex; flex-direction:column; align-items:center; gap:10px; padding:10px 3px; min-height:0; max-height:72vh;}
+.cfp-app .collapsed-rail .rail-exp{font:inherit; font-size:13px; line-height:1; padding:5px 6px; border:1px solid var(--hairline-strong); border-radius:var(--r-control); background:var(--sunken); color:var(--muted); cursor:pointer;}
+.cfp-app .collapsed-rail .rail-exp:hover{color:var(--ink); background:var(--canvas);}
+.cfp-app .collapsed-rail .rail-sched{font-family:var(--f-num); font-size:11px; font-weight:700; color:#fff; border:0; border-radius:var(--r-pill); padding:2px 8px; cursor:pointer;}
+.cfp-app .collapsed-rail.pay .rail-sched{background:var(--out);}
+.cfp-app .collapsed-rail.rec .rail-sched{background:var(--in);}
+.cfp-app .collapsed-rail .rail-title{writing-mode:vertical-rl; transform:rotate(180deg); font-size:10px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); white-space:nowrap; margin-top:6px;}
+
+/* ---- Focus button pressed ---- */
+.cfp-app #cfp-focus[aria-pressed="true"]{background:var(--sel); border-color:var(--sel); color:#fff;}
+
+/* ---- Flash highlight when jumping from a scheduled dropdown ---- */
+.cfp-app .placed.flash{animation:cfp-flash 1.4s ease;}
+@keyframes cfp-flash{0%,100%{box-shadow:none;} 18%,62%{box-shadow:0 0 0 2px var(--sel), 0 0 0 5px var(--sel-tint);}}
+
 /* ---- Responsive ---- */
 @media (max-width:1100px){
   .cfp-app .body{grid-template-columns:210px minmax(0,1fr) 210px;}
@@ -288,3 +326,138 @@
   .cfp-app .reservoir{max-height:320px;}
   .cfp-app .lz-body{grid-template-columns:1fr;}
 }
+
+/* ===================== partial-payment editing ===================== */
+.cfp-app .bamt.editable, .cfp-app .pamt.editable{cursor:text; border-bottom:1px dashed transparent; transition:border-color .12s;}
+.cfp-app .bamt.editable:hover, .cfp-app .pamt.editable:hover{border-bottom-color:var(--faint);}
+.cfp-app input.amt-edit{font-family:var(--f-num); font-size:12.5px; font-weight:700; width:88px; text-align:right; border:1px solid var(--sel); border-radius:4px; padding:1px 5px; background:var(--surface); color:var(--ink); outline:none;}
+.cfp-app input.amt-edit:focus{box-shadow:0 0 0 2px var(--sel-tint);}
+.cfp-app .merge-back{flex:none; cursor:pointer; border:none; background:rgba(127,127,127,.14); color:var(--muted); font-size:11px; line-height:1; border-radius:4px; padding:2px 6px; margin:0 2px;}
+.cfp-app .merge-back:hover{background:var(--sel-tint); color:var(--sel);}
+.cfp-app .part-chip{flex:none; font-family:var(--f-num); font-size:8px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:1px 4px; border-radius:3px; background:var(--sel-tint); color:var(--sel);}
+
+/* ===================== two-section reservoir + forward view ===================== */
+.cfp-app .res-sections{flex:1; overflow-y:auto; min-height:0; padding:8px;}
+.cfp-app .res-sec{margin-bottom:10px;}
+.cfp-app .res-sec:last-child{margin-bottom:0;}
+.cfp-app .sec-head{display:flex; align-items:center; gap:7px; padding:6px 8px; border-radius:6px; cursor:pointer; background:var(--sunken); border:1px solid var(--hairline); position:sticky; top:-8px; z-index:2;}
+.cfp-app .sec-head:hover{background:var(--canvas);}
+.cfp-app .sec-head .tw{font-size:9px; color:var(--faint); width:9px; transition:transform .12s; flex:none;}
+.cfp-app .sec-head.open .tw{transform:rotate(90deg);}
+.cfp-app .sec-head .sec-name{flex:1; font-size:11px; font-weight:700; letter-spacing:.02em; text-transform:uppercase; color:var(--muted);}
+.cfp-app .sec-head .cnt{font-family:var(--f-num); font-size:10px; font-weight:600; color:var(--muted); background:var(--surface); border:1px solid var(--hairline); border-radius:var(--r-pill); padding:1px 7px;}
+.cfp-app .sec-head .sec-tot{font-family:var(--f-num); font-size:12px; font-weight:700;}
+.cfp-app .res-sec .res-body{flex:none; overflow:visible; padding:6px 0 0; min-height:auto;}
+.cfp-app .sec-body.sched-list{padding:6px 0 0; display:flex; flex-direction:column; gap:6px;}
+.cfp-app .res-empty{font-size:11px; color:var(--faint); padding:10px 6px; text-align:center;}
+
+/* relative-time pill — the "in 5d / 3d late" forward signal */
+.cfp-app .due-pill{font-family:var(--f-num); font-size:9px; font-weight:700; padding:1px 6px; border-radius:var(--r-pill); flex:none; letter-spacing:.01em;}
+.cfp-app .due-pill.due-late{background:var(--out-tint); color:var(--out);}
+.cfp-app .due-pill.due-today{background:var(--cc-tint); color:var(--cc);}
+.cfp-app .due-pill.due-soon{background:var(--in-tint); color:var(--in);}
+.cfp-app .folder-head .due-pill{margin-left:2px;}
+
+/* reservoir blocks: compact at rest (name + amount + tiny timing), expand on hover */
+.cfp-app .block{transition:box-shadow .14s ease, transform .14s ease;}
+.cfp-app .block .brow2{display:flex; align-items:center; gap:6px; margin-top:5px;}
+.cfp-app .block .bmeta{display:flex; align-items:center; gap:7px; font-size:10px; color:var(--muted); max-height:0; opacity:0; overflow:hidden; margin-top:0; transition:max-height .16s ease, opacity .14s ease, margin-top .16s ease;}
+.cfp-app .block .bmeta .bdue{font-family:var(--f-num); font-size:9.5px; color:var(--muted);}
+.cfp-app .block .bmeta .bid{font-family:var(--f-num); font-size:9px; color:var(--faint); max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.cfp-app .block:hover{box-shadow:0 2px 4px rgba(30,28,20,.1), 0 8px 22px rgba(30,28,20,.14); z-index:5; position:relative;}
+.cfp-app .block:hover .bname{white-space:normal; overflow:visible;}
+.cfp-app .block:hover .bmeta{max-height:48px; opacity:1; margin-top:6px;}
+
+/* scheduled (chosen) cards — greyed to signal already committed */
+.cfp-app .block.sched-card{opacity:.6; padding:6px 9px; margin-bottom:0; cursor:pointer;}
+.cfp-app .block.sched-card:hover{opacity:1; background:var(--sunken);}
+.cfp-app .block.sched-card::before{display:none;}
+.cfp-app .sched-card .sched-when{font-family:var(--f-num); font-size:10px; font-weight:600; color:var(--muted); background:rgba(127,127,127,.14); padding:1px 7px; border-radius:var(--r-pill); flex:none;}
+
+/* timeline placed cards — compact at rest, lift + expand a detail row on hover */
+.cfp-app .placed{padding:7px 9px; transition:box-shadow .14s ease, transform .14s ease;}
+.cfp-app .placed .ptop{margin-bottom:3px; gap:5px;}
+.cfp-app .placed .pname{font-size:12.5px; font-weight:700; line-height:1.25;}
+.cfp-app .placed .prow{align-items:center; gap:6px;}
+.cfp-app .placed .pamt{font-size:14px; font-weight:800;}
+.cfp-app .placed .prow .pwhen{margin-left:auto;}
+.cfp-app .placed .pdetail{display:flex; flex-wrap:wrap; align-items:center; gap:5px 8px; max-height:0; opacity:0; overflow:hidden; margin-top:0; transition:max-height .16s ease, opacity .14s ease, margin-top .16s ease;}
+.cfp-app .placed .pdetail .pid{font-family:var(--f-num); font-size:9.5px; color:var(--muted); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.cfp-app .placed .pdetail .pdue{font-family:var(--f-num); font-size:9.5px; color:var(--muted);}
+.cfp-app .placed .pdetail .pdate{font-size:9.5px;}
+.cfp-app .placed:hover{box-shadow:0 4px 10px rgba(30,28,20,.12), 0 12px 26px rgba(30,28,20,.16); transform:translateY(-1px); position:relative; z-index:6;}
+.cfp-app .placed:hover .pname{white-space:normal; overflow:visible;}
+.cfp-app .placed:hover .pdetail{max-height:60px; opacity:1; margin-top:7px;}
+.cfp-app .placed.in-group{margin:6px 8px 0 8px;}
+
+/* same-company group inside a column → one expandable block */
+.cfp-app .pgroup{margin-bottom:7px; border:1px solid var(--hairline); border-radius:7px; background:var(--surface); overflow:hidden;}
+.cfp-app .pgroup.pay{border-left:3px solid var(--out);}
+.cfp-app .pgroup.rec{border-left:3px solid var(--in);}
+.cfp-app .pg-head{display:flex; align-items:center; gap:7px; padding:8px 10px; cursor:pointer;}
+.cfp-app .pg-head:hover{background:var(--sunken);}
+.cfp-app .pg-head .tw{font-size:9px; color:var(--faint); width:9px; transition:transform .12s; flex:none;}
+.cfp-app .pg-head.open .tw{transform:rotate(90deg);}
+.cfp-app .pg-head .pg-name{flex:1; font-size:12.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.cfp-app .pg-head .pg-cnt{font-family:var(--f-num); font-size:10px; font-weight:700; color:#fff; border-radius:var(--r-pill); padding:1px 7px; flex:none;}
+.cfp-app .pgroup.pay .pg-cnt{background:var(--out);} .cfp-app .pgroup.rec .pg-cnt{background:var(--in);}
+.cfp-app .pg-head .pg-amt{font-family:var(--f-num); font-size:13px; font-weight:800; flex:none;}
+.cfp-app .pgroup .placed.in-group:last-child{margin-bottom:8px;}
+
+/* collapsed rail scheduled-count */
+.cfp-app .collapsed-rail .rail-count{font-family:var(--f-num); font-size:11px; font-weight:700; color:#fff; border-radius:var(--r-pill); padding:2px 8px;}
+.cfp-app .collapsed-rail.pay .rail-count{background:var(--out);} .cfp-app .collapsed-rail.rec .rail-count{background:var(--in);}
+
+/* opening-cash full-value hint + empty-board KPI note */
+.cfp-app .tb-openhint{font-family:var(--f-num); font-size:10px; color:var(--faint); white-space:nowrap;}
+.cfp-app .s-note{font-size:10px; font-weight:600; color:var(--faint); margin-top:2px; letter-spacing:.01em;}
+
+/* loading / error overlay over the whole board */
+.cfp-app{position:relative;}
+.cfp-app .cfp-status-overlay{
+  display:none; position:absolute; inset:0; z-index:1500;
+  flex-direction:column; align-items:center; justify-content:center; gap:12px;
+  background:color-mix(in srgb, var(--canvas) 80%, transparent); backdrop-filter:blur(1.5px);
+  text-align:center; padding:24px;
+}
+.cfp-app .cfp-status-overlay.show{display:flex;}
+.cfp-app .cfp-status-msg{font-size:13px; font-weight:600; color:var(--muted); max-width:440px;}
+.cfp-app .cfp-status-overlay.error .cfp-status-msg{color:var(--out);}
+.cfp-app .cfp-status-icon{font-size:28px; line-height:1; color:var(--out);}
+.cfp-app .cfp-status-retry{font:inherit; font-size:13px; font-weight:600; padding:6px 14px; border-radius:var(--r-control); border:1px solid transparent; background:var(--sel); color:#fff; cursor:pointer;}
+.cfp-app .cfp-status-retry:hover{filter:brightness(1.07);}
+.cfp-app .cfp-spinner{width:30px; height:30px; border:3px solid var(--hairline-strong); border-top-color:var(--sel); border-radius:50%; animation:cfp-spin .7s linear infinite;}
+@keyframes cfp-spin{to{transform:rotate(360deg);}}
+
+/* ── mark-paid (planning-only sticker) ───────────────────────────────── */
+/* the little ○ / ✓ toggle on each bill card */
+.cfp-app .paid-toggle{
+  font:inherit; font-size:12px; line-height:1; width:20px; height:20px; flex:none;
+  display:inline-flex; align-items:center; justify-content:center; cursor:pointer;
+  border:1px solid var(--hairline-strong); border-radius:var(--r-pill);
+  background:var(--surface); color:var(--faint); padding:0; margin-right:2px;
+}
+.cfp-app .paid-toggle:hover{border-color:var(--in); color:var(--in); background:var(--in-tint);}
+.cfp-app .paid-toggle.on{background:var(--in); border-color:var(--in); color:#fff;}
+/* the "✓ paid" chip + placed-card tag */
+.cfp-app .paid-chip{font-size:10px; font-weight:700; color:var(--in); background:var(--in-tint); border:1px solid var(--in-line); border-radius:var(--r-pill); padding:1px 6px;}
+.cfp-app .ptag.paid{color:#fff; background:var(--in); border-color:var(--in);}
+/* a paid bill is greyed out — clearly "done", but still legible and still draggable */
+.cfp-app .block.paid, .cfp-app .placed.paid, .cfp-app .sched-card.paid{opacity:.6; filter:saturate(.7);}
+.cfp-app .placed.paid{border-left:3px solid var(--in);}
+.cfp-app .paid .bamt, .cfp-app .paid .pamt{text-decoration:line-through; text-decoration-thickness:1px;}
+
+/* always-visible invoice / reference number on every block (no hover needed) */
+.cfp-app .brow2 .card-id{font-family:var(--f-num); font-size:9.5px; color:var(--faint); max-width:60%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.cfp-app .placed .pref{font-family:var(--f-num); font-size:9.5px; color:var(--muted); margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.cfp-app .sched-card .sched-ref{font-family:var(--f-num); font-size:9px; color:var(--faint); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+
+/* carried-overdue indicator — placed on today, but the real due date is past */
+.cfp-app .placed.carried-late{border-left:3px solid var(--fin);}
+.cfp-app .late-banner{
+  margin-top:5px; font-size:10px; font-weight:700; letter-spacing:.01em;
+  color:var(--fin); background:var(--fin-tint); border:1px solid var(--fin-line);
+  border-radius:var(--r-control); padding:2px 6px; display:flex; align-items:center; gap:4px;
+}
+.cfp-app .sched-card.late-carried{border-left:3px solid var(--fin);}
+.cfp-app .sched-when.late{color:var(--fin); font-weight:700;}

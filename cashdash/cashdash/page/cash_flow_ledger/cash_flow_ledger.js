@@ -106,6 +106,7 @@ class CashFlowLedger {
 
 	load_data() {
 		var me = this;
+		me.show_loading();
 		frappe.call({
 			method: 'cashdash.cashdash.page.cash_flow_planner.cash_flow_planner.get_planner_data',
 			args: { base_date: me.base_date },
@@ -115,15 +116,62 @@ class CashFlowLedger {
 					me.all_receivables = r.message.receivables || [];
 					me.supplier_groups = r.message.supplier_groups || [];
 					me.customer_groups = r.message.customer_groups || [];
-					
+
 					var config = r.message.config || {};
 					me.notes = config.notes || {};
-					
+
+					me.hide_status();
 					me.render();
+				} else {
+					me.show_error('The ledger loaded but returned no data.');
 				}
+			},
+			error: function() {
+				me.show_error('Couldn’t load the ledger. The server may be busy or an invoice is missing a total.');
 			}
 		});
 	}
+
+	/* ---- currency formatting ---- */
+	// Compact, signed — for summary surfaces (banner, KPI decks) where a wall of
+	// digits hurts. ₹34.16L / ₹1.45Cr. Mirrors the planner's fmtShort.
+	fmt_compact(n) {
+		var v = Number(n) || 0, a = Math.abs(v), s;
+		if (a >= 1e7) s = (a / 1e7).toFixed(2).replace(/\.?0+$/, '') + 'Cr';
+		else if (a >= 1e5) s = (a / 1e5).toFixed(2).replace(/\.?0+$/, '') + 'L';
+		else s = Math.round(a).toLocaleString('en-IN');
+		return (v < 0 ? '−' : '') + '₹' + s;
+	}
+	// Exact grouped rupees — for per-invoice table cells (a ledger is the detail
+	// surface). Rounds to paise first so float dust like 341000.49999 can't leak.
+	fmt_rupee(n) {
+		var v = Math.round((Number(n) || 0) * 100) / 100;
+		return '₹' + v.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+	}
+
+	/* ---- loading / error overlay ---- */
+	get $status() {
+		var $el = this.wrapper.find('.cf-status-overlay');
+		if (!$el.length) {
+			$el = $('<div class="cf-status-overlay"></div>');
+			this.wrapper.find('.cash-flow-ledger-wrapper').append($el);
+		}
+		return $el;
+	}
+	show_loading() {
+		this.$status.removeClass('error').addClass('show')
+			.html('<div class="cf-spinner"></div><div class="cf-status-msg">Loading ledger…</div>');
+	}
+	show_error(msg) {
+		var me = this;
+		this.$status.addClass('show error').html(
+			'<div class="cf-status-icon">⚠</div>' +
+			'<div class="cf-status-msg">' + frappe.utils.escape_html(msg || 'Something went wrong.') + '</div>' +
+			'<button class="cf-btn cf-btn-primary cf-status-retry">Retry</button>'
+		);
+		this.$status.find('.cf-status-retry').on('click', function() { me.load_data(); });
+	}
+	hide_status() { this.$status.removeClass('show error').empty(); }
 
 	render() {
 		this.render_net_banner();
@@ -143,21 +191,33 @@ class CashFlowLedger {
 		var total_pay = this.all_payables.reduce((a, b) => a + b.outstanding, 0);
 		var total_rec = this.all_receivables.reduce((a, b) => a + b.outstanding, 0);
 		var net_diff = total_rec - total_pay;
-		
-		this.wrapper.find('#lbl-payables-total').text('₹' + total_pay.toLocaleString('en-IN'));
-		this.wrapper.find('#lbl-receivables-total').text('₹' + total_rec.toLocaleString('en-IN'));
-		
+
+		// Timing context — totals alone hide whether the cover actually lines up in
+		// time. Surface what's ALREADY overdue on each side so a "surplus" that's
+		// really 90-day receivables vs payables-due-now doesn't read as healthy.
+		var od_pay = this.all_payables.filter(b => b.age_days > 0).reduce((a, b) => a + b.outstanding, 0);
+		var od_rec = this.all_receivables.filter(b => b.age_days > 0).reduce((a, b) => a + b.outstanding, 0);
+
+		this.wrapper.find('#lbl-payables-total').text(this.fmt_compact(total_pay));
+		this.wrapper.find('#lbl-receivables-total').text(this.fmt_compact(total_rec));
+
 		var net_badge = this.wrapper.find('#lbl-net-difference');
-		var net_sign = net_diff >= 0 ? '+' : '';
-		net_badge.text(`${net_sign}₹${net_diff.toLocaleString('en-IN')}`);
-		
+		var net_sign = net_diff >= 0 ? '+' : '−';
+		net_badge.text(`${net_sign}${this.fmt_compact(Math.abs(net_diff))}`);
+
+		// Neutral, hedged language — this is a totals view, not a dated forecast.
+		var verdict;
 		if (net_diff >= 0) {
 			net_badge.css({ 'background': '#d1fae5', 'color': '#065f46' });
-			this.wrapper.find('#lbl-net-verdict').text('Receivables cover payables with a surplus.');
+			verdict = `Receivables exceed payables by ${this.fmt_compact(Math.abs(net_diff))} overall`;
 		} else {
 			net_badge.css({ 'background': '#fee2e2', 'color': '#b91c1c' });
-			this.wrapper.find('#lbl-net-verdict').text('Payables exceed receivables; deficit detected.');
+			verdict = `Payables exceed receivables by ${this.fmt_compact(Math.abs(net_diff))} overall`;
 		}
+		var timing = (od_pay > 0 || od_rec > 0)
+			? ` · already overdue: ${this.fmt_compact(od_pay)} to pay vs ${this.fmt_compact(od_rec)} to collect`
+			: ' · nothing overdue yet';
+		this.wrapper.find('#lbl-net-verdict').text(verdict + timing + '. Totals only — timing of due dates not modelled.');
 	}
 
 	render_single() {
@@ -209,8 +269,8 @@ class CashFlowLedger {
 					<td>${row.bill_date}</td>
 					<td><span class="cf-pill term-pill">${row.credit_term}</span></td>
 					<td style="font-weight: 600; color: #1e3a8a;">${row.final_date}</td>
-					<td>₹${row.value.toLocaleString('en-IN')}</td>
-					<td style="font-weight: 700;">₹${row.outstanding.toLocaleString('en-IN')}</td>
+					<td>${me.fmt_rupee(row.value)}</td>
+					<td style="font-weight: 700;">${me.fmt_rupee(row.outstanding)}</td>
 					<td>${age_badge}</td>
 					<td>
 						<div class="cf-flex cf-gap-10 cf-flex-align">
@@ -244,11 +304,11 @@ class CashFlowLedger {
 		this.wrapper.find('#kpi-1-sub').text(sub1);
 		
 		this.wrapper.find('#kpi-2-label').text(is_pay ? 'Order Value' : 'Invoice Value');
-		this.wrapper.find('#kpi-2-val').text(`₹${total_val.toLocaleString('en-IN')}`);
+		this.wrapper.find('#kpi-2-val').text(this.fmt_compact(total_val));
 		this.wrapper.find('#kpi-2-sub').text(is_pay ? 'submitted PIs' : 'submitted SIs');
-		
+
 		this.wrapper.find('#kpi-3-label').text('Outstanding');
-		this.wrapper.find('#kpi-3-val').text(`₹${outstanding_val.toLocaleString('en-IN')}`);
+		this.wrapper.find('#kpi-3-val').text(this.fmt_compact(outstanding_val));
 		this.wrapper.find('#kpi-3-sub').text(is_pay ? 'still payable' : 'still receivable');
 		
 		this.wrapper.find('#kpi-4-label').text('Overdue');
@@ -416,13 +476,13 @@ class CashFlowLedger {
 		var rec_total = this.all_receivables.reduce((a, b) => a + b.outstanding, 0);
 
 		this.wrapper.find('#split-pay-kpi-invoices').text(this.all_payables.length);
-		this.wrapper.find('#split-pay-kpi-value').text(`₹${(pay_total/10000000).toFixed(2)}Cr`);
-		this.wrapper.find('#split-pay-kpi-outstanding').text(`₹${(pay_total/10000000).toFixed(2)}Cr`);
+		this.wrapper.find('#split-pay-kpi-value').text(this.fmt_compact(pay_total));
+		this.wrapper.find('#split-pay-kpi-outstanding').text(this.fmt_compact(pay_total));
 		this.wrapper.find('#split-pay-kpi-overdue').text(this.all_payables.filter(i => i.age_days > 0).length);
 
 		this.wrapper.find('#split-rec-kpi-invoices').text(this.all_receivables.length);
-		this.wrapper.find('#split-rec-kpi-value').text(`₹${(rec_total/10000000).toFixed(2)}Cr`);
-		this.wrapper.find('#split-rec-kpi-outstanding').text(`₹${(rec_total/10000000).toFixed(2)}Cr`);
+		this.wrapper.find('#split-rec-kpi-value').text(this.fmt_compact(rec_total));
+		this.wrapper.find('#split-rec-kpi-outstanding').text(this.fmt_compact(rec_total));
 		this.wrapper.find('#split-rec-kpi-overdue').text(this.all_receivables.filter(i => i.age_days > 0).length);
 
 		// Payables
@@ -444,7 +504,7 @@ class CashFlowLedger {
 					<td><strong>${row.party}</strong></td>
 					<td><span style="font-family: monospace; font-size: 11px;">${row.name}</span></td>
 					<td>${row.final_date}</td>
-					<td>₹${row.outstanding.toLocaleString('en-IN')}</td>
+					<td>${me.fmt_rupee(row.outstanding)}</td>
 					<td>${age_badge}</td>
 					<td><button class="cf-btn btn-split-review" data-inv="${row.name}" style="padding: 2px 6px; font-size: 10px;">Review</button></td>
 				</tr>
@@ -471,7 +531,7 @@ class CashFlowLedger {
 					<td><strong>${row.party}</strong></td>
 					<td><span style="font-family: monospace; font-size: 11px;">${row.name}</span></td>
 					<td>${row.final_date}</td>
-					<td>₹${row.outstanding.toLocaleString('en-IN')}</td>
+					<td>${me.fmt_rupee(row.outstanding)}</td>
 					<td>${age_badge}</td>
 					<td><button class="cf-btn btn-split-review" data-inv="${row.name}" style="padding: 2px 6px; font-size: 10px;">Review</button></td>
 				</tr>
@@ -504,7 +564,7 @@ class CashFlowLedger {
 		if (inv) {
 			this.wrapper.find('#modal-lbl-invoice-id').text(inv.name);
 			this.wrapper.find('#modal-lbl-party-name').text(inv.party);
-			this.wrapper.find('#modal-lbl-outstanding').text(`₹${inv.outstanding.toLocaleString('en-IN')}`);
+			this.wrapper.find('#modal-lbl-outstanding').text(this.fmt_rupee(inv.outstanding));
 			this.wrapper.find('#modal-input-notes').val(this.notes[inv_id] || '');
 			this.$review_modal.addClass('show');
 		}

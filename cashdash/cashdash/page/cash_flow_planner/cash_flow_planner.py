@@ -3,6 +3,7 @@ import json
 import os
 import csv
 import io
+import hashlib
 from datetime import datetime, timedelta
 
 @frappe.whitelist()
@@ -52,9 +53,14 @@ def get_planner_data(base_date="2026-06-03"):
 	}
 
 @frappe.whitelist()
-def save_planner_data(opening_balance, horizon, scenario, schedules, notes, cc_utilization=0, bd_utilization=0, custom_amounts=None, fragments=None):
+def save_planner_data(opening_balance, horizon, scenario, schedules, notes, cc_utilization=0, bd_utilization=0, custom_amounts=None, fragments=None, paid=None):
 	"""
 	Saves the planner configurations and schedules to a local JSON file.
+
+	`paid` is a planning-only map { invoice_name: true } of bills the user has
+	ticked off as paid ON THE BOARD. It is NOT a real payment — no Payment Entry
+	is created and no invoice is touched. When omitted (None), the existing paid
+	map is preserved so a partial save (e.g. the ledger's note save) can't wipe it.
 	"""
 	config_path = get_config_file_path()
 
@@ -75,6 +81,7 @@ def save_planner_data(opening_balance, horizon, scenario, schedules, notes, cc_u
 		"notes": json.loads(notes or "{}"),
 		"custom_amounts": json.loads(custom_amounts or "{}"),
 		"fragments": json.loads(fragments or "{}"),
+		"paid": json.loads(paid) if paid is not None else existing.get("paid", {}),
 		"cc_utilization": float(cc_utilization or 0),
 		"bd_utilization": float(bd_utilization or 0),
 		"saved_plans": existing.get("saved_plans", {})
@@ -111,6 +118,8 @@ def load_persisted_config():
 					cfg["custom_amounts"] = {}
 				if "fragments" not in cfg:
 					cfg["fragments"] = {}
+				if "paid" not in cfg:
+					cfg["paid"] = {}
 				if "saved_plans" not in cfg:
 					cfg["saved_plans"] = {}
 				return cfg
@@ -145,15 +154,31 @@ def load_persisted_config():
 		},
 		"custom_amounts": {},
 		"fragments": {},
+		"paid": {},
 		"saved_plans": {},
 		"cc_utilization": 0,
 		"bd_utilization": 0
 	}
 
+def assume_credit_days(doctype, party_group, seed):
+	"""
+	Real invoices currently land as "Due on receipt" because the credit-terms
+	doctype isn't built yet. To give the planner a board worth testing on, we
+	spread an ASSUMED credit term of 0–90 days across every invoice so due dates
+	fan out over the whole timeline (overdue → in-horizon → later) instead of
+	clustering. Deterministic — seeded by invoice name — so the same invoice keeps
+	the same term across reloads and your blocks don't jump around mid-test. (Once
+	a real terms field starts populating due_date, fetch_real_invoices stops
+	calling this: credit_days > 0 wins.) doctype/party_group are kept in the
+	signature for future per-group tuning but don't affect the spread today.
+	"""
+	h = int(hashlib.md5((seed or "x").encode("utf-8")).hexdigest(), 16)
+	return h % 91  # 0..90 inclusive
+
 def fetch_real_invoices(doctype, base_date_str):
 	base_date = datetime.strptime(base_date_str, "%Y-%m-%d").date()
 	fields = [
-		"name", "posting_date", "due_date", "grand_total", 
+		"name", "posting_date", "due_date", "grand_total",
 		"outstanding_amount", "docstatus"
 	]
 	
@@ -173,15 +198,24 @@ def fetch_real_invoices(doctype, base_date_str):
 		# Calculate synthetic or actual credit terms
 		post_date = r.posting_date
 		due_date = r.due_date
-		
+
 		credit_days = 0
 		if post_date and due_date:
 			credit_days = (due_date - post_date).days
-			
+
+		# No real credit term yet (due == posting → "Due on receipt"): assume one
+		# from the party group and roll the due date forward so the planner has a
+		# realistic forward-looking schedule to work with.
+		assumed_term = False
+		if credit_days <= 0 and post_date:
+			credit_days = assume_credit_days(doctype, r.party_group, r.name)
+			due_date = post_date + timedelta(days=credit_days)
+			assumed_term = True
+
 		term_str = f"Net {credit_days}" if credit_days > 0 else "Due on receipt"
-		
+
 		# Compute payment status
-		age_days = (base_date - due_date).days
+		age_days = (base_date - due_date).days if due_date else 0
 		if age_days > 0:
 			payment_status = f"Overdue {age_days}d"
 		else:
@@ -200,7 +234,8 @@ def fetch_real_invoices(doctype, base_date_str):
 			"outstanding": float(r.outstanding_amount),
 			"payment_status": payment_status,
 			"age_days": age_days,
-			"is_real": True
+			"is_real": True,
+			"assumed_term": assumed_term
 		})
 	return invoices
 
@@ -386,6 +421,7 @@ def save_named_plan(plan_name):
 		"notes": config.get("notes", {}),
 		"custom_amounts": config.get("custom_amounts", {}),
 		"fragments": config.get("fragments", {}),
+		"paid": config.get("paid", {}),
 		"cc_utilization": config.get("cc_utilization", 0),
 		"bd_utilization": config.get("bd_utilization", 0),
 		"saved_at": datetime.now().isoformat()
