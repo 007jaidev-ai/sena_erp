@@ -20,14 +20,16 @@ frappe.pages['cash_flow_planner'] = frappe.pages['cash-flow-planner'];
 
 var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 var CC_LIMIT = 6e7, BD_LIMIT = 4e7, SOFT = 0.8;
-var TODAY = new Date(2026, 5, 3);                 // demo "today" — Jun 3 2026
-var HORIZON_START = new Date(2026, 5, 1);          // Mon Jun 1 2026
+var _NOW = new Date();
+var TODAY = new Date(_NOW.getFullYear(), _NOW.getMonth(), _NOW.getDate());   // real today (local midnight)
+function _mondayOnOrBefore(d) { var x = new Date(d); var wd = (x.getDay() + 6) % 7; x.setDate(x.getDate() - wd); x.setHours(0, 0, 0, 0); return x; }
+var HORIZON_START = _mondayOnOrBefore(TODAY);      // Monday of the current week
 
 class CashFlowPlanner {
 	constructor(wrapper, page) {
 		this.wrapper = $(wrapper);
 		this.page = page;
-		this.base_date = '2026-06-03';
+		this.base_date = TODAY.getFullYear() + '-' + String(TODAY.getMonth() + 1).padStart(2, '0') + '-' + String(TODAY.getDate()).padStart(2, '0');
 
 		this.blocks = [];
 		this.opening = 80 * 1e5;
@@ -41,7 +43,9 @@ class CashFlowPlanner {
 		this.ledgerOpen = true;
 		this.planOpen = false;
 		this.moreOpen = false;
-		this.ledgerSort = { pay: { key: 'final', dir: 'asc' }, rec: { key: 'final', dir: 'asc' } };
+		// Multi-sort: an ordered list per side. Array order = priority. Each entry
+		// carries a `step` (1=asc, 2=desc, 3=asc, 4→removed) for the click cycle.
+		this.ledgerSort = { pay: [{ column: 'final', direction: 'asc', step: 1 }], rec: [{ column: 'final', direction: 'asc', step: 1 }] };
 		this.contra = {};
 		this.notes = {};
 		this.dragId = null;
@@ -119,17 +123,19 @@ class CashFlowPlanner {
 			amount: side === 'pay' ? -out : out,
 			due: this.parseDMY(inv.final_date), billDate: this.parseDMY(inv.bill_date),
 			term: inv.credit_term || '—', orderValue: parseFloat(inv.value) || out,
-			overdue: (inv.age_days || 0) > 0, priority: !!inv.priority, highValue: out >= 5e5,
+			overdue: (inv.age_days || 0) > 0, priority: !!inv.priority || ((inv.age_days || 0) > 0 && out >= 5e5), highValue: out >= 5e5,
 			placedDate: pd, origin: pd ? 'auto' : null, facility: null
 		};
 	}
 
 	// A few bank-facility lines (the backend carries no financing rows)
 	addFacilityBlocks() {
+		// Cash-flow sign: a DRAW puts cash in your account (+), a REPAYMENT takes it
+		// out (−). (Facility utilization is tracked separately in renderStatus.)
 		var specs = [
-			['CC', 'financing', -1800000, 'Cash Credit draw'],
-			['BD', 'bd', -2400000, 'Bill Discounting draw'],
-			['CC', 'financing', 900000, 'CC repayment']
+			['CC', 'financing', 1800000, 'Cash Credit draw'],
+			['BD', 'bd', 2400000, 'Bill Discounting draw'],
+			['CC', 'financing', -900000, 'CC repayment']
 		];
 		specs.forEach((f, i) => {
 			this.blocks.push({
@@ -147,7 +153,7 @@ class CashFlowPlanner {
 	parseDMY(s) { if (!s) return new Date(TODAY); var p = String(s).split('-'); return new Date(+p[2], (+p[1]) - 1, +p[0]); }
 	keyToDate(key) {
 		if (/^\d{4}-\d{2}-\d{2}$/.test(key)) { var p = key.split('-'); return new Date(+p[0], (+p[1]) - 1, +p[2]); }
-		if (/-W\d+$/.test(key)) { var w = parseInt(key.split('-W')[1]); return this.addDays(new Date(2026, 5, 1), (w - 23) * 7); }
+		if (/-W\d+$/.test(key)) { var w = parseInt(key.split('-W')[1]); return this.addDays(HORIZON_START, (w - 23) * 7); }
 		if (/^\d{4}-\d{2}-w\d+$/.test(key)) { var q = key.split('-'); var n = parseInt(q[2].substring(1)); return new Date(+q[0], (+q[1]) - 1, 1 + (n - 1) * 7); }
 		if (/^\d{4}-\d{2}$/.test(key)) { var m = key.split('-'); return new Date(+m[0], (+m[1]) - 1, 1); }
 		if (/^\d{4}$/.test(key)) return new Date(+key, 0, 1);
@@ -168,8 +174,10 @@ class CashFlowPlanner {
 	get horizonEnd() { return this.addDays(HORIZON_START, this.horizonWeeks * 7 - 1); }
 
 	fmtShort(n) {
+		if (n == null || !isFinite(n)) return '₹—';        // never leak NaN/Infinity to the UI
 		var a = Math.abs(n), s;
-		if (a >= 1e7) s = (a / 1e7).toFixed(2).replace(/\.?0+$/, '') + 'Cr';
+		// 0.99995e7 so e.g. ₹99,99,999 reads as "₹1Cr", not the misleading "₹100L".
+		if (a >= 0.99995e7) s = (a / 1e7).toFixed(2).replace(/\.?0+$/, '') + 'Cr';
 		else if (a >= 1e5) s = (a / 1e5).toFixed(2).replace(/\.?0+$/, '') + 'L';
 		else s = Math.round(a).toLocaleString('en-IN');
 		return (n < 0 ? '−' : '') + '₹' + s;
@@ -183,6 +191,23 @@ class CashFlowPlanner {
 	get unscheduled() { return this.blocks.filter(b => !b.placedDate); }
 	get placedSorted() { return this.placed.slice().sort((a, b) => a.placedDate - b.placedDate); }
 	balanceAt(t) { var s = this.opening; var ps = this.placedSorted; for (var i = 0; i < ps.length; i++) { if (ps[i].placedDate <= t) s += ps[i].amount; else break; } return s; }
+
+	// Lowest end-of-day running balance over [start, end]. Walks placed cash events
+	// in date order so a week/month catches a dip on ANY day inside it, not just its
+	// last day. Money-in-hand (opening) + scheduled receipts − scheduled payments.
+	minBalanceInRange(start, end) {
+		var s0 = this.startOfDay(start).getTime(), e0 = this.startOfDay(end).getTime();
+		var ps = this.placedSorted, run = this.opening, min = Infinity, entered = false;
+		for (var i = 0; i < ps.length; i++) {
+			var t = this.startOfDay(ps[i].placedDate).getTime();
+			if (t > e0) break;
+			if (!entered && t >= s0) { min = run; entered = true; }   // balance carried into the period
+			run += ps[i].amount;
+			if (t >= s0 && run < min) min = run;                      // balance right after an in-range event
+		}
+		if (!entered) min = run;                                      // no events in range → flat carried balance
+		return min;
+	}
 
 	buildColumns() {
 		var me = this, v = this.view, placed = this.placed, cols = [];
@@ -216,6 +241,11 @@ class CashFlowPlanner {
 			c.outflow = c.blocks.filter(b => b.amount < 0).reduce((s, b) => s + b.amount, 0);
 			c.net = c.inflow + c.outflow;
 			c.sigma = me.balanceAt(c.end);
+			// Shortfall: cash on hand can't cover scheduled payments somewhere in this
+			// column. For a day that's the end-of-day balance; for a week/month it's the
+			// lowest balance on ANY day inside, so an aggregated view still flags a dip.
+			c.minBal = me.minBalanceInRange(c.start, c.end);
+			c.shortfall = c.minBal < -0.5;
 			if (c.isHorizon === undefined) {
 				c.isHorizon = c.end >= HORIZON_START && c.start <= hEnd;
 				c.isFuture = c.start > hEnd;
@@ -563,6 +593,7 @@ class CashFlowPlanner {
 				<div class="sep"></div>
 				<div class="item" data-action="saveas">Save as…</div>
 				<div class="item" data-action="load">Load plans…</div>
+				<div class="item" data-action="fresh">Start fresh</div>
 				<div class="sep"></div>
 				<div class="item" data-action="merge">Merge fragments</div>
 				<div class="item" data-action="export">Export CSV</div>
@@ -605,20 +636,21 @@ class CashFlowPlanner {
 		var fac = (name, color, used, limit) => {
 			var pct = Math.min(100, (used / limit) * 100);
 			var state = used >= limit ? 'hard' : used >= limit * SOFT ? 'soft' : 'ok';
-			var note = state === 'ok' ? 'Within facility' : state === 'soft' ? '⚠ Past soft limit — review before drawing more' : 'Hard limit reached — over-limit draws blocked';
+			var note = state === 'ok' ? 'Within facility' : state === 'soft' ? '⚠ Past soft limit — review before drawing more' : '⚠ At/over limit — confirm headroom before drawing more';
 			return `<div class="fac ${state}">
 				<div class="fhead"><span class="fname" style="color:${color}">${name}</span>
 					<span class="fval">${this.fmtShort(used)} / ${this.fmtShort(limit)}${state === 'hard' ? ' 🔒' : ''}</span></div>
 				<div class="ftrack"><div class="ffill" style="width:${pct}%"></div><div class="fsoft" style="left:${SOFT * 100}%"></div></div>
 				<div class="fnote">${note}</div></div>`;
 		};
-		var facCC = this.placed.filter(b => b.facility === 'financing' && b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
-		var facBD = this.placed.filter(b => b.facility === 'bd' && b.amount < 0).reduce((s, b) => s + Math.abs(b.amount), 0);
+		// Net drawn on each facility = draws (+cash) minus repayments (−cash), floored at 0.
+		var facCC = Math.max(0, this.placed.filter(b => b.facility === 'financing').reduce((s, b) => s + b.amount, 0));
+		var facBD = Math.max(0, this.placed.filter(b => b.facility === 'bd').reduce((s, b) => s + b.amount, 0));
 		return `
 		<div class="status">
 			<div class="statstrip">
 				<div class="s ${nothingPlaced ? '' : (k.horizonNet >= 0 ? 'good' : '')}"><div class="k">Horizon net · ${this.horizonWeeks} wks</div><div class="v" ${(!nothingPlaced && k.horizonNet < 0) ? 'style="color:var(--out)"' : ''}>${this.fmtShort(nothingPlaced ? 0 : k.horizonNet)}</div>${nothingPlaced ? '<div class="s-note">nothing scheduled yet</div>' : ''}</div>
-				<div class="s"><div class="k">Lowest cash${nothingPlaced ? '' : ' · wk ' + k.lowestWk}</div><div class="v" ${(!nothingPlaced && k.lowest < 0) ? 'style="color:var(--out)"' : ''}>${this.fmtShort(k.lowest)}</div>${nothingPlaced ? '<div class="s-note">= opening · nothing scheduled</div>' : ''}</div>
+				<div class="s" title="Projected low point of cash on hand across the horizon, counting only SCHEDULED movements. Unscheduled bills (in the side panels) aren't included yet."><div class="k">Lowest cash${nothingPlaced ? '' : ' · wk ' + k.lowestWk}</div><div class="v" ${(!nothingPlaced && k.lowest < 0) ? 'style="color:var(--out)"' : ''}>${this.fmtShort(k.lowest)}</div><div class="s-note">${nothingPlaced ? '= opening · nothing scheduled' : 'scheduled only'}</div></div>
 				<div class="s ${k.overdue > 0 ? 'alert' : ''}"><div class="k">${k.overdue > 0 ? '⚠ ' : ''}Overdue</div><div class="v">${k.overdue}<small>items</small></div></div>
 				<div class="s"><div class="k">Unscheduled</div><div class="v">${k.unscheduled}</div></div>
 				<div class="s ${k.paidCount > 0 ? 'good' : ''}" title="Bills you've ticked off as paid — planning only, the real invoices are untouched"><div class="k">✓ Paid <small>planned</small></div><div class="v">${k.paidCount}<small>/${k.billCount}</small></div></div>
@@ -849,6 +881,10 @@ class CashFlowPlanner {
 
 		var viewNet = this.cols.reduce((s, c) => s + c.net, 0);
 		var colsHtml = this.cols.map((c, idx) => this.renderColumn(c, idx)).join('');
+		// First-run orientation: the bills aren't missing, they're in the side panels.
+		var emptyHint = this.placed.length === 0
+			? `<div class="tl-empty-hint">Nothing scheduled yet — drag bills from the side panels onto a day/week, or use <b>Plan ▾</b> to pull a whole period onto the board.</div>`
+			: '';
 		return `<div class="timeline">
 			<div class="tl-nav">
 				<div class="zseg">${seg('year', 'Year')}${seg('month', 'Month')}${seg('week', 'Week')}</div>
@@ -856,6 +892,7 @@ class CashFlowPlanner {
 				<span class="crumb">${crumb}</span>
 				<span class="tl-net">view net <b class="${viewNet < 0 ? 'neg' : 'pos'}">${this.fmtShort(viewNet)}</b></span>
 			</div>
+			${emptyHint}
 			<div class="tl-cols">${colsHtml}</div>
 		</div>`;
 	}
@@ -884,10 +921,14 @@ class CashFlowPlanner {
 
 	renderColumn(c, idx) {
 		var cls = ['col']; if (c.isHorizon) cls.push('horizon'); if (c.isFuture) cls.push('future'); if (c.isToday) cls.push('today-col'); if (c.isWeekend) cls.push('weekend');
+		if (c.shortfall) cls.push('shortfall');
 		var isSel = c.level === 'day' && this.view.day && this.sameDay(c.start, this.view.day);
 		if (isSel) cls.push('sel-day');
 		var netStr = c.net === 0 ? '₹0' : this.fmtShort(c.net);
 		var netCls = c.net < 0 ? 'neg' : c.net > 0 ? 'pos' : '';
+		// Subtle shortfall marker — cash dips below ₹0 somewhere in this period.
+		var shortLabel = c.unit === 'day' ? 'this day' : ('a day this ' + c.unit);
+		var shortFlag = c.shortfall ? `<span class="short-flag" title="Cash shortfall — money in hand + scheduled receipts won't cover scheduled payments on ${shortLabel} (low: ${this.fmtShort(c.minBal)})">⚠</span>` : '';
 		var tag = c.isToday ? '<span class="ch-tag today">Today</span>' : (c.isPast && !c.isToday ? '<span class="ch-tag past">Past</span>' : '');
 		var body = c.blocks.length === 0
 			? `<div class="col-empty">${c.isFuture ? 'Drop a block here to schedule it.' : c.isPast ? 'No movements pencilled in.' : 'Drag a block onto this ' + c.unit + '.'}</div>`
@@ -897,6 +938,7 @@ class CashFlowPlanner {
 			<div class="col-head${headSel}">
 				<div class="ch-top">
 					<span class="ch-name ${c.drillable ? 'drillable' : ''}" data-colidx="${idx}">${c.name}</span>
+					${shortFlag}
 					${tag}
 					<span class="ch-net ${netCls}" ${c.net === 0 ? 'style="color:var(--faint)"' : ''}>${netStr}</span>
 				</div>
@@ -940,30 +982,62 @@ class CashFlowPlanner {
 		</div>`;
 	}
 
+	ledgerVal(b, key) {
+		switch (key) {
+			case 'name': return b.entity.toLowerCase();
+			case 'term': return (b.term || '').toLowerCase();
+			case 'order': return b.orderValue || Math.abs(b.amount);
+			case 'outstanding': return Math.abs(b.amount);
+			default: return b.due.getTime(); // 'final'
+		}
+	}
+
 	sortLedgerRows(rows, side) {
-		var s = this.ledgerSort[side], dir = s.dir === 'desc' ? -1 : 1;
-		var val = b => {
-			switch (s.key) {
-				case 'name': return b.entity.toLowerCase();
-				case 'term': return (b.term || '').toLowerCase();
-				case 'order': return b.orderValue || Math.abs(b.amount);
-				case 'outstanding': return Math.abs(b.amount);
-				default: return b.due.getTime(); // 'final'
-			}
-		};
+		var me = this, keys = this.ledgerSort[side] || [];
+		if (!keys.length) return rows.slice();
 		return rows.slice().sort((a, b) => {
-			var va = val(a), vb = val(b);
-			if (va < vb) return -1 * dir;
-			if (va > vb) return 1 * dir;
-			return 0;
+			for (var i = 0; i < keys.length; i++) {                 // priority = array order
+				var k = keys[i], dir = k.direction === 'desc' ? -1 : 1;
+				var va = me.ledgerVal(a, k.column), vb = me.ledgerVal(b, k.column);
+				if (va < vb) return -1 * dir;
+				if (va > vb) return 1 * dir;
+			}
+			return 0;                                               // equal on every key → stable
 		});
+	}
+
+	// Header-click cycle, shared model with the standalone ledger page:
+	//   off → asc(1) → desc(2) → asc(3) → off.  additive (shift/ctrl/cmd) keeps the
+	//   other columns and appends/cycles this one; plain click collapses to this one.
+	cycleLedgerSort(side, col, additive) {
+		var keys = this.ledgerSort[side] || (this.ledgerSort[side] = []);
+		var idx = keys.findIndex(k => k.column === col);
+		if (idx >= 0) {
+			// Already a sort level — cycle THIS column in place and keep every other
+			// level untouched (plain or modifier click; toggling one must never drop
+			// the others). 4th step removes just this column.
+			this._advanceSortStep(keys, idx);
+		} else if (additive) {
+			keys.push({ column: col, direction: 'asc', step: 1 });   // add a new level
+		} else {
+			this.ledgerSort[side] = [{ column: col, direction: 'asc', step: 1 }]; // fresh single sort
+		}
+	}
+	_advanceSortStep(keys, idx) {
+		var k = keys[idx];
+		k.step = (k.step || 1) + 1;
+		if (k.step >= 4) { keys.splice(idx, 1); return; }       // 4th click clears the column
+		k.direction = (k.step === 2) ? 'desc' : 'asc';          // 1,3 → asc · 2 → desc
 	}
 
 	renderLedger() {
 		var th = (side, key, label, right) => {
-			var s = this.ledgerSort[side];
-			var arrow = s.key === key ? (s.dir === 'desc' ? ' ▾' : ' ▴') : '';
-			return `<th class="${right ? 'r ' : ''}sortable${s.key === key ? ' active' : ''}" data-sort="${key}" data-side="${side}">${label}${arrow}</th>`;
+			var keys = this.ledgerSort[side] || [];
+			var idx = keys.findIndex(k => k.column === key);
+			var active = idx >= 0;
+			var arrow = active ? (keys[idx].direction === 'desc' ? ' ▾' : ' ▴') : '';
+			var pri = (active && keys.length > 1) ? `<span class="sort-pri">${idx + 1}</span>` : '';
+			return `<th class="${right ? 'r ' : ''}sortable${active ? ' active' : ''}" data-sort="${key}" data-side="${side}" title="Click to sort · Shift/Ctrl-click to add another sort level">${label}${arrow}${pri}</th>`;
 		};
 		var panel = (side, title) => {
 			var rows = this.blocks.filter(b => side === 'pay' ? (b.side === 'pay' && !b.facility) : b.side === 'rec');
@@ -1068,7 +1142,7 @@ class CashFlowPlanner {
 		// Select a day (the "Plan day" target) at the week level
 		$w.on('click', '.col-head.selectable', function() { var c = me.cols[$(this).data('selday')]; if (c) { me.view.day = new Date(c.start); me.render(); } });
 		// Ledger column sort
-		$w.on('click', '.ledger th.sortable', function() { var side = $(this).data('side'), key = $(this).data('sort'); var s = me.ledgerSort[side]; if (s.key === key) s.dir = s.dir === 'asc' ? 'desc' : 'asc'; else { s.key = key; s.dir = 'asc'; } me.render(); });
+		$w.on('click', '.ledger th.sortable', function(e) { var side = $(this).data('side'), key = $(this).data('sort'); me.cycleLedgerSort(side, key, e.shiftKey || e.ctrlKey || e.metaKey); me.render(); });
 
 		// Reservoir search + pills + folders
 		$w.on('input', '.res-search', function() { me.search[$(this).data('side')] = $(this).val(); me.render(); });
@@ -1175,6 +1249,7 @@ class CashFlowPlanner {
 		if (action === 'save') this.save();
 		else if (action === 'saveas') this.saveAs();
 		else if (action === 'load') this.loadPlans();
+		else if (action === 'fresh') this.startFresh();
 		else if (action === 'overdue') this.placeOverdueOnToday();
 		else if (action === 'merge') this.mergeAllFragments();
 		else if (action === 'export') this.exportCsv();
@@ -1226,7 +1301,7 @@ class CashFlowPlanner {
 
 	exportCsv() {
 		var me = this;
-		frappe.call({ method: 'cashdash.cashdash.page.cash_flow_planner.cash_flow_planner.export_planner_csv', args: { base_date: this.base_date }, callback: function(r) {
+		frappe.call({ method: 'cashdash.cashdash.page.cash_flow_planner.cash_flow_planner.export_planner_csv', args: { base_date: this.base_date, schedules: JSON.stringify(this.schedulesMap()), paid: JSON.stringify(this.paidMap()) }, callback: function(r) {
 			var csv = r.message || ''; var blob = new Blob([csv], { type: 'text/csv' }); var url = URL.createObjectURL(blob);
 			var a = document.createElement('a'); a.href = url; a.download = 'cash_flow_planner.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 			me.toast('Exported to CSV'); me.render();
@@ -1240,5 +1315,33 @@ class CashFlowPlanner {
 				me.past = []; me.future = []; me.toast('Board reset'); me.load_data();
 			}});
 		});
+	}
+
+	// Start fresh — empty the board to plan from scratch: unschedule everything,
+	// clear every ✓ paid mark, and recombine split pieces into whole invoices. No
+	// data is deleted (invoices + amounts stay); it's one undoable step, saved on Save.
+	// Differs from Reset, which reloads the saved seed placement from the server.
+	startFresh() {
+		var me = this;
+		frappe.confirm(
+			'Start fresh? This clears all scheduling and ✓ paid marks and recombines any split pieces, giving you an empty board to plan on. Your invoices and amounts are kept — nothing is deleted.',
+			function() {
+				var next = me.blocks.slice();
+				// recombine any split families back into a single whole invoice
+				Object.keys(me.familyCeil).forEach(function(root) {
+					var fam = next.filter(x => me.rootOf(x) === root);
+					if (fam.length <= 1) return;
+					var keep = fam.find(x => x.id === root) || fam[0], sign = keep.amount < 0 ? -1 : 1, ceilP = me.familyCeil[root];
+					next = next.filter(x => me.rootOf(x) !== root || x.id === keep.id)
+						.map(x => x.id === keep.id ? Object.assign({}, x, { amount: sign * me.fromPaise(ceilP), orderValue: me.fromPaise(ceilP), highValue: ceilP >= me.toPaise(5e5), splitFrom: undefined }) : x);
+				});
+				// clear all scheduling + paid stickers → everything back to the side panels
+				next = next.map(b => Object.assign({}, b, { placedDate: null, origin: null, paid: false }));
+				me.familyCeil = {};
+				me.commit(next);
+				me.toast('Fresh board — everything moved back to the side panels');
+				me.render();
+			}
+		);
 	}
 }

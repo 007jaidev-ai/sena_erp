@@ -7,7 +7,7 @@ import hashlib
 from datetime import datetime, timedelta
 
 @frappe.whitelist()
-def get_planner_data(base_date="2026-06-03"):
+def get_planner_data(base_date=None):
 	"""
 	Returns a dictionary containing:
 	- payables: list of purchase invoices
@@ -16,6 +16,11 @@ def get_planner_data(base_date="2026-06-03"):
 	- supplier_groups: list of supplier group names
 	- customer_groups: list of customer group names
 	"""
+	# Default the "today" anchor to the real current date (the frontend normally
+	# passes its own; this covers direct/API calls so overdue math stays correct).
+	if not base_date:
+		base_date = frappe.utils.nowdate()
+
 	# Load persisted config
 	config = load_persisted_config()
 
@@ -79,8 +84,10 @@ def save_planner_data(opening_balance, horizon, scenario, schedules, notes, cc_u
 		"scenario": scenario,
 		"schedules": json.loads(schedules or "{}"),
 		"notes": json.loads(notes or "{}"),
-		"custom_amounts": json.loads(custom_amounts or "{}"),
-		"fragments": json.loads(fragments or "{}"),
+		# Optional maps preserve the existing value when not passed, so a partial save
+		# from another screen can never silently wipe the planner's working state.
+		"custom_amounts": json.loads(custom_amounts) if custom_amounts is not None else existing.get("custom_amounts", {}),
+		"fragments": json.loads(fragments) if fragments is not None else existing.get("fragments", {}),
 		"paid": json.loads(paid) if paid is not None else existing.get("paid", {}),
 		"cc_utilization": float(cc_utilization or 0),
 		"bd_utilization": float(bd_utilization or 0),
@@ -91,6 +98,28 @@ def save_planner_data(opening_balance, horizon, scenario, schedules, notes, cc_u
 		json.dump(data, f, indent=4)
 		
 	return {"status": "success", "message": "Planner state saved successfully"}
+
+@frappe.whitelist()
+def save_review_note(invoice_name, note=None):
+	"""
+	Updates ONLY the review note for one invoice in the persisted config.
+	The ledger uses this instead of save_planner_data so adding a note never
+	touches the planner's schedules / splits / opening balance (data-loss guard).
+	"""
+	if not invoice_name:
+		frappe.throw("invoice_name is required")
+	config_path = get_config_file_path()
+	config = load_persisted_config()
+	notes = config.get("notes", {})
+	if note:
+		notes[invoice_name] = note
+	else:
+		notes.pop(invoice_name, None)
+	config["notes"] = notes
+	with open(config_path, "w") as f:
+		json.dump(config, f, indent=4)
+	return {"status": "success", "message": "Note saved"}
+
 
 @frappe.whitelist()
 def reset_planner_data():
@@ -191,7 +220,12 @@ def fetch_real_invoices(doctype, base_date_str):
 		"docstatus": 1,
 		"outstanding_amount": (">", 0)
 	}
-	
+
+	# Scope to the active company so a multi-company site doesn't mix books.
+	company = frappe.defaults.get_user_default("company") or frappe.db.get_single_value("Global Defaults", "default_company")
+	if company:
+		filters["company"] = company
+
 	records = frappe.get_all(doctype, filters=filters, fields=fields)
 	invoices = []
 	for r in records:
@@ -230,8 +264,8 @@ def fetch_real_invoices(doctype, base_date_str):
 			"bill_date": post_date.strftime("%d-%m-%Y") if post_date else "",
 			"credit_term": term_str,
 			"final_date": due_date.strftime("%d-%m-%Y") if due_date else "",
-			"value": float(r.grand_total),
-			"outstanding": float(r.outstanding_amount),
+			"value": float(r.grand_total or 0),
+			"outstanding": float(r.outstanding_amount or 0),
 			"payment_status": payment_status,
 			"age_days": age_days,
 			"is_real": True,
@@ -383,20 +417,11 @@ def get_contra_parties(payables, receivables):
 	Detects party names that appear in both payables and receivables.
 	Returns a sorted list of contra-party names.
 	"""
+	# Parties that appear on BOTH sides of the displayed data. Derived from the
+	# fetched invoices only — no full Supplier/Customer table scan per load.
 	payable_parties = {inv["party"] for inv in payables}
 	receivable_parties = {inv["party"] for inv in receivables}
-
-	# Also check from DB if real doctypes have overlapping suppliers/customers
-	db_contra = set()
-	try:
-		supplier_names = {d.supplier_name for d in frappe.get_all("Supplier", fields=["supplier_name"])}
-		customer_names = {d.customer_name for d in frappe.get_all("Customer", fields=["customer_name"])}
-		db_contra = supplier_names & customer_names
-	except Exception:
-		pass
-
-	contra = (payable_parties & receivable_parties) | db_contra
-	return sorted(list(contra))
+	return sorted(list(payable_parties & receivable_parties))
 
 
 @frappe.whitelist()
@@ -504,61 +529,45 @@ def list_named_plans():
 
 
 @frappe.whitelist()
-def export_planner_csv(base_date="2026-06-03"):
+def export_planner_csv(base_date=None, schedules=None, paid=None):
 	"""
-	Generates a CSV string of all payables and receivables for export.
-	Columns: Party, Invoice, Ref No, Bill Date, Credit Term, Final Date,
-	         Value, Outstanding, Scheduled To, Type, Status
-	Returns the CSV content as a string.
+	Generates a CSV of all payables and receivables for export.
+
+	`schedules` and `paid` are the LIVE board state passed from the screen, so the
+	export matches what the user sees (not just the last save). When omitted, falls
+	back to the persisted config.
 	"""
+	if not base_date:
+		base_date = frappe.utils.nowdate()
 	data = get_planner_data(base_date)
 	payables = data.get("payables", [])
 	receivables = data.get("receivables", [])
 	config = data.get("config", {})
-	schedules = config.get("schedules", {})
+	sched = json.loads(schedules) if schedules else config.get("schedules", {})
+	paid_map = json.loads(paid) if paid else config.get("paid", {})
 
 	output = io.StringIO()
 	writer = csv.writer(output)
 
-	# Header row
 	writer.writerow([
 		"Party", "Invoice", "Ref No", "Bill Date", "Credit Term",
-		"Final Date", "Value", "Outstanding", "Scheduled To", "Type", "Status"
+		"Final Date", "Value", "Outstanding", "Scheduled To", "Type", "Status", "Paid (planned)"
 	])
 
-	# Write payables
-	for inv in payables:
-		writer.writerow([
-			inv.get("party", ""),
-			inv.get("name", ""),
-			inv.get("ref_no", ""),
-			inv.get("bill_date", ""),
-			inv.get("credit_term", ""),
-			inv.get("final_date", ""),
-			inv.get("value", 0),
-			inv.get("outstanding", 0),
-			schedules.get(inv.get("name", ""), ""),
-			"Payable",
-			inv.get("payment_status", "")
-		])
+	def write_rows(rows, kind):
+		for inv in rows:
+			name = inv.get("name", "")
+			writer.writerow([
+				inv.get("party", ""), name, inv.get("ref_no", ""),
+				inv.get("bill_date", ""), inv.get("credit_term", ""), inv.get("final_date", ""),
+				inv.get("value", 0), inv.get("outstanding", 0),
+				sched.get(name, ""), kind, inv.get("payment_status", ""),
+				"Yes" if paid_map.get(name) else ""
+			])
 
-	# Write receivables
-	for inv in receivables:
-		writer.writerow([
-			inv.get("party", ""),
-			inv.get("name", ""),
-			inv.get("ref_no", ""),
-			inv.get("bill_date", ""),
-			inv.get("credit_term", ""),
-			inv.get("final_date", ""),
-			inv.get("value", 0),
-			inv.get("outstanding", 0),
-			schedules.get(inv.get("name", ""), ""),
-			"Receivable",
-			inv.get("payment_status", "")
-		])
+	write_rows(payables, "Payable")
+	write_rows(receivables, "Receivable")
 
 	csv_content = output.getvalue()
 	output.close()
-
 	return csv_content

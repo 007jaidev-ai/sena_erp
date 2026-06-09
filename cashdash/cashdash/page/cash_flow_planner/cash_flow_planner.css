@@ -225,6 +225,12 @@
 .cfp-app .col-body.drop-active{background:var(--sel-tint); outline:2px dashed var(--sel); outline-offset:-4px;}
 .cfp-app .col-empty{height:100%; min-height:80px; display:flex; align-items:center; justify-content:center; text-align:center; border:1.5px dashed var(--hairline-strong); border-radius:6px; font-size:11px; color:var(--faint); padding:12px;}
 
+/* cash-shortfall indicator — subtle, not a full-red column. A red top accent +
+   faint header tint + ⚠ flags any day/week/month where cash dips below ₹0. */
+.cfp-app .col.shortfall .col-head{background:var(--out-tint); border-bottom-color:var(--out-line); box-shadow:inset 0 3px 0 var(--out);}
+.cfp-app .col.shortfall .ch-name{color:var(--out);}
+.cfp-app .col-head .short-flag{font-size:11px; font-weight:700; color:var(--out); align-self:center; line-height:1; cursor:help;}
+
 /* ---- Placed block (on board) ---- */
 .cfp-app .placed{position:relative; background:var(--out-tint); border:1px solid var(--out-line); border-radius:6px; padding:8px 10px; margin-bottom:7px; cursor:grab;}
 .cfp-app .placed.rec{background:var(--in-tint); border-color:var(--in-line);}
@@ -265,6 +271,7 @@
 .cfp-app .ledger th.sortable{cursor:pointer; user-select:none;}
 .cfp-app .ledger th.sortable:hover{color:var(--muted);}
 .cfp-app .ledger th.sortable.active{color:var(--sel);}
+.cfp-app .ledger th .sort-pri{display:inline-flex; align-items:center; justify-content:center; min-width:13px; height:13px; margin-left:3px; padding:0 3px; font-size:8px; font-weight:800; line-height:1; color:#fff; background:var(--sel); border-radius:var(--r-pill); vertical-align:middle;}
 .cfp-app .ledger td{padding:6px 7px; border-bottom:1px solid var(--hairline); color:var(--ink);}
 .cfp-app .ledger td.num{font-family:var(--f-num); white-space:nowrap;}
 .cfp-app .ledger tr:last-child td{border-bottom:0;}
@@ -411,6 +418,7 @@
 /* opening-cash full-value hint + empty-board KPI note */
 .cfp-app .tb-openhint{font-family:var(--f-num); font-size:10px; color:var(--faint); white-space:nowrap;}
 .cfp-app .s-note{font-size:10px; font-weight:600; color:var(--faint); margin-top:2px; letter-spacing:.01em;}
+.cfp-app .tl-empty-hint{margin:8px 10px 0; padding:9px 12px; font-size:12px; color:var(--muted); background:var(--sel-tint); border:1px solid var(--sel-line); border-radius:var(--r-control);}
 
 /* loading / error overlay over the whole board */
 .cfp-app{position:relative;}

@@ -15,11 +15,14 @@ class CashFlowLedger {
 		this.wrapper = $(wrapper);
 		this.page = page;
 		
-		this.base_date = '2026-06-03';
+		var _n = new Date();
+		this.base_date = _n.getFullYear() + '-' + String(_n.getMonth() + 1).padStart(2, '0') + '-' + String(_n.getDate()).padStart(2, '0');
 		this.active_tab = 'payables'; // 'payables', 'receivables', 'side-by-side'
 		
-		this.payables_sort_keys = [{column: 'final_date', direction: 'asc'}];
-		this.receivables_sort_keys = [{column: 'final_date', direction: 'asc'}];
+		// Multi-sort: ordered list = priority. `step` drives the header-click cycle
+		// (1=asc, 2=desc, 3=asc, 4→removed). Shift/Ctrl/Cmd-click adds a level.
+		this.payables_sort_keys = [{column: 'final_date', direction: 'asc', step: 1}];
+		this.receivables_sort_keys = [{column: 'final_date', direction: 'asc', step: 1}];
 		
 		this.notes = {};
 		
@@ -54,14 +57,16 @@ class CashFlowLedger {
 		this.wrapper.find('#ledger-table th').on('click', function(e) {
 			var col = $(this).data('col');
 			if (!col) return;
-			me.handle_sort_click('single', col, e.shiftKey);
+			me.handle_sort_click('single', col, e.shiftKey || e.ctrlKey || e.metaKey);
 		});
 
-		// Sort direction toggle button
+		// Sort direction toggle button — flips the primary (highest priority) sort,
+		// keeping its cycle step in sync with the new direction.
 		this.wrapper.find('#ledger-btn-sort-dir').on('click', function() {
 			var keys = me.active_tab === 'payables' ? me.payables_sort_keys : me.receivables_sort_keys;
 			if (keys.length > 0) {
 				keys[0].direction = keys[0].direction === 'asc' ? 'desc' : 'asc';
+				keys[0].step = keys[0].direction === 'desc' ? 2 : 1;
 				me.render();
 			}
 		});
@@ -82,16 +87,10 @@ class CashFlowLedger {
 			me.notes[inv_id] = note;
 			me.$review_modal.removeClass('show');
 			
-			// Save note in config
+			// Notes-only save — must NOT touch the planner's schedules/splits/opening.
 			frappe.call({
-				method: 'cashdash.cashdash.page.cash_flow_planner.cash_flow_planner.save_planner_data',
-				args: {
-					opening_balance: 80.00,
-					horizon: '6 wks',
-					scenario: 'Realistic',
-					schedules: '{}',
-					notes: JSON.stringify(me.notes)
-				},
+				method: 'cashdash.cashdash.page.cash_flow_planner.cash_flow_planner.save_review_note',
+				args: { invoice_name: inv_id, note: note },
 				callback: function() {
 					frappe.show_alert({message: __('Note saved successfully'), indicator: 'green'});
 					me.load_data();
@@ -370,45 +369,38 @@ class CashFlowLedger {
 		return sorted;
 	}
 
-	handle_sort_click(view_type, col, is_shift) {
+	// Header-click cycle: off → asc(1) → desc(2) → asc(3) → off(4).
+	// `additive` (shift / ctrl / cmd click) keeps the other sorted columns and
+	// appends/cycles this one — array order is the sort priority. A plain click
+	// collapses to a single sort on this column (then cycles it).
+	handle_sort_click(view_type, col, additive) {
 		var is_pay = this.active_tab === 'payables';
-		if (view_type === 'split') {
-			// pane_is_pay is already locked inside active_tab
-			is_pay = this.active_tab === 'payables';
-		}
 		var keys = is_pay ? this.payables_sort_keys : this.receivables_sort_keys;
-		var existing_idx = keys.findIndex(k => k.column === col);
-		
-		if (!is_shift) {
-			if (existing_idx >= 0) {
-				var current = keys[existing_idx];
-				if (current.direction === 'asc') {
-					current.direction = 'desc';
-					keys.splice(0, keys.length, current);
-				} else {
-					keys.splice(0, keys.length);
-				}
-			} else {
-				keys.splice(0, keys.length, { column: col, direction: 'asc' });
-			}
+		var idx = keys.findIndex(k => k.column === col);
+
+		if (idx >= 0) {
+			// Already a sort level — cycle THIS column in place, keeping all other
+			// levels (plain or modifier click). Toggling one column must never drop
+			// the others. The 4th step removes just this column.
+			this._advance_sort_step(keys, idx);
+		} else if (additive) {
+			keys.push({ column: col, direction: 'asc', step: 1 });   // add a new level
 		} else {
-			if (existing_idx >= 0) {
-				var current = keys[existing_idx];
-				if (current.direction === 'asc') {
-					current.direction = 'desc';
-				} else {
-					keys.splice(existing_idx, 1);
-				}
-			} else {
-				keys.push({ column: col, direction: 'asc' });
-			}
+			keys.splice(0, keys.length, { column: col, direction: 'asc', step: 1 }); // fresh single sort
 		}
-		
+
 		if (view_type === 'split') {
 			this.render_split();
 		} else {
 			this.render_single();
 		}
+	}
+
+	_advance_sort_step(keys, idx) {
+		var k = keys[idx];
+		k.step = (k.step || 1) + 1;
+		if (k.step >= 4) { keys.splice(idx, 1); return; }   // 4th click clears this column
+		k.direction = (k.step === 2) ? 'desc' : 'asc';      // steps 1,3 → asc · step 2 → desc
 	}
 
 	render_sort_badges(is_pay) {
@@ -553,8 +545,25 @@ class CashFlowLedger {
 			if (!col) return;
 			var pane_is_pay = $(this).closest('table').attr('id') === 'split-pay-table';
 			me.active_tab = pane_is_pay ? 'payables' : 'receivables';
-			me.handle_sort_click('split', col, e.shiftKey);
+			me.handle_sort_click('split', col, e.shiftKey || e.ctrlKey || e.metaKey);
 			me.active_tab = 'side-by-side'; // restore
+		});
+
+		// Sort-state arrows + priority numbers on the split-pane headers.
+		this.render_split_sort_indicators('#split-pay-table', this.payables_sort_keys);
+		this.render_split_sort_indicators('#split-rec-table', this.receivables_sort_keys);
+	}
+
+	render_split_sort_indicators(table_sel, keys) {
+		var $ths = this.wrapper.find(table_sel + ' th');
+		$ths.removeClass('active-sort').find('.sort-priority').remove();
+		keys.forEach(function(k, idx) {
+			var $th = $ths.filter(`[data-col="${k.column}"]`);
+			if (!$th.length) return;
+			$th.addClass('active-sort');
+			var arrow = k.direction === 'asc' ? '↑' : '↓';
+			var prefix = keys.length > 1 ? (idx + 1) + ' ' : '';
+			$th.append(`<span class="sort-priority">${prefix}${arrow}</span>`);
 		});
 	}
 
