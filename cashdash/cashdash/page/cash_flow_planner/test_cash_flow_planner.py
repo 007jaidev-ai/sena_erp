@@ -31,15 +31,18 @@ class TestCashFlowPlanner(unittest.TestCase):
 		elif os.path.exists(self.cfg_path):
 			os.remove(self.cfg_path)
 
-	# ---- assumed-terms determinism (so blocks don't jump around on reload) ----
-	def test_assume_credit_days_is_deterministic_and_bounded(self):
-		a = cfp.assume_credit_days("Purchase Invoice", "X", "ACC-PINV-2026-00001")
-		b = cfp.assume_credit_days("Purchase Invoice", "X", "ACC-PINV-2026-00001")
-		self.assertEqual(a, b)
-		self.assertTrue(0 <= a <= 90)
-		self.assertNotEqual(
-			a, cfp.assume_credit_days("Purchase Invoice", "X", "ACC-PINV-2026-00002")
-		)
+	# ---- real bills load from the committed data file with real credit terms ----
+	def test_load_tally_bills_returns_real_terms(self):
+		bills = cfp.load_tally_bills("2026-06-09")
+		rows = bills["payables"] + bills["receivables"]
+		self.assertTrue(rows, "no bills loaded from data/tally_bills.json")
+		# Every bill carries a real credit term string and a stable TLY-* id.
+		for r in rows:
+			self.assertTrue(r["name"].startswith("TLY-"))
+			self.assertIn("credit_term", r)
+			self.assertNotIn("assumed_term", r)  # the hash-assumed term is gone
+		# At least some bills have a real "Net N" term (not all "Due on receipt").
+		self.assertTrue(any(r["credit_term"].startswith("Net ") for r in rows))
 
 	# ---- C1 regression: a notes-only save must NOT wipe the planner ----
 	def test_save_review_note_preserves_planner_state(self):
@@ -81,14 +84,20 @@ class TestCashFlowPlanner(unittest.TestCase):
 
 	# ---- CSV reflects the live board state passed from the screen ----
 	def test_csv_uses_live_schedules_and_paid(self):
+		# Pick a real bill name from the loaded data so the test tracks the actual
+		# invoice ids the planner serves (TLY-*), not a hardcoded synthetic one.
+		data = cfp.get_planner_data(base_date="2026-06-09")
+		rows = data["payables"] + data["receivables"]
+		self.assertTrue(rows, "no bills loaded from data/tally_bills.json")
+		name = rows[0]["name"]
 		csv_out = cfp.export_planner_csv(
 			base_date="2026-06-09",
-			schedules=json.dumps({"ACC-PINV-2026-00001": "2026-06-20"}),
-			paid=json.dumps({"ACC-PINV-2026-00001": True}),
+			schedules=json.dumps({name: "2026-06-20"}),
+			paid=json.dumps({name: True}),
 		)
 		self.assertIn("Paid (planned)", csv_out)
 		# the scheduled date + paid flag from the live state should appear on the row
-		line = [ln for ln in csv_out.splitlines() if "ACC-PINV-2026-00001" in ln]
+		line = [ln for ln in csv_out.splitlines() if name in ln]
 		self.assertTrue(line, "invoice row missing from CSV")
 		self.assertIn("2026-06-20", line[0])
 		self.assertIn("Yes", line[0])

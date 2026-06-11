@@ -5,6 +5,12 @@ __pycache__/
 *.pyc
 *.py~
 
+# Raw Tally export sqlite (multi-GB) — never commit. The importer
+# (importer/import_tally_bills.py) reads it locally and emits the compact,
+# committed cashdash/data/tally_bills.json instead.
+*.sqlite3
+*.sqlite
+
 # Distribution / packaging
 .Python
 develop-eggs/
