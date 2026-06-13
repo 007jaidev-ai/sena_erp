@@ -11,9 +11,10 @@
       "ref_no": "ST-2026/118",
       "bill_date": "10-05-2026",
       "credit_term": "Net 45",
+      "term_verified": true,
       "final_date": "24-06-2026",
-      "value": 480000.0,
-      "outstanding": 480000.0,
+      "value_paise": 48000000,
+      "outstanding_paise": 48000000,
       "is_real": true
     },
     {
@@ -24,9 +25,10 @@
       "ref_no": "NWF/771",
       "bill_date": "17-05-2026",
       "credit_term": "Net 30",
+      "term_verified": true,
       "final_date": "16-06-2026",
-      "value": 96500.0,
-      "outstanding": 60000.0,
+      "value_paise": 9650000,
+      "outstanding_paise": 6000000,
       "is_real": true
     },
     {
@@ -37,9 +39,10 @@
       "ref_no": "CP-3391",
       "bill_date": "24-05-2026",
       "credit_term": "Net 15",
+      "term_verified": true,
       "final_date": "08-06-2026",
-      "value": 142000.0,
-      "outstanding": 142000.0,
+      "value_paise": 14200000,
+      "outstanding_paise": 14200000,
       "is_real": true
     },
     {
@@ -50,9 +53,10 @@
       "ref_no": "MJW-204",
       "bill_date": "29-05-2026",
       "credit_term": "Net 7",
+      "term_verified": true,
       "final_date": "05-06-2026",
-      "value": 58900.0,
-      "outstanding": 58900.0,
+      "value_paise": 5890000,
+      "outstanding_paise": 5890000,
       "is_real": true
     },
     {
@@ -63,9 +67,10 @@
       "ref_no": "SPL/0925",
       "bill_date": "22-04-2026",
       "credit_term": "Net 30",
+      "term_verified": true,
       "final_date": "22-05-2026",
-      "value": 312000.0,
-      "outstanding": 120000.0,
+      "value_paise": 31200000,
+      "outstanding_paise": 12000000,
       "is_real": true
     },
     {
@@ -76,9 +81,10 @@
       "ref_no": "GT-556",
       "bill_date": "20-05-2026",
       "credit_term": "Due on receipt",
+      "term_verified": false,
       "final_date": "20-05-2026",
-      "value": 27400.0,
-      "outstanding": 27400.0,
+      "value_paise": 2740000,
+      "outstanding_paise": 2740000,
       "is_real": true
     },
     {
@@ -89,9 +95,10 @@
       "ref_no": "VL/26/889",
       "bill_date": "27-05-2026",
       "credit_term": "Net 20",
+      "term_verified": true,
       "final_date": "16-06-2026",
-      "value": 41200.0,
-      "outstanding": 41200.0,
+      "value_paise": 4120000,
+      "outstanding_paise": 4120000,
       "is_real": true
     },
     {
@@ -102,9 +109,10 @@
       "ref_no": "ICE-1187",
       "bill_date": "02-05-2026",
       "credit_term": "Net 45",
+      "term_verified": true,
       "final_date": "16-06-2026",
-      "value": 905000.0,
-      "outstanding": 905000.0,
+      "value_paise": 90500000,
+      "outstanding_paise": 90500000,
       "is_real": true
     },
     {
@@ -115,9 +123,10 @@
       "ref_no": "BE-2026-44",
       "bill_date": "26-05-2026",
       "credit_term": "Net 28",
+      "term_verified": true,
       "final_date": "23-06-2026",
-      "value": 73600.0,
-      "outstanding": 73600.0,
+      "value_paise": 7360000,
+      "outstanding_paise": 7360000,
       "is_real": true
     },
     {
@@ -128,9 +137,10 @@
       "ref_no": "SC/612",
       "bill_date": "14-05-2026",
       "credit_term": "Net 15",
+      "term_verified": true,
       "final_date": "29-05-2026",
-      "value": 158900.0,
-      "outstanding": 90000.0,
+      "value_paise": 15890000,
+      "outstanding_paise": 9000000,
       "is_real": true
     },
     {
@@ -141,9 +151,10 @@
       "ref_no": "DBC-409",
       "bill_date": "30-05-2026",
       "credit_term": "Net 7",
+      "term_verified": true,
       "final_date": "06-06-2026",
-      "value": 64300.0,
-      "outstanding": 64300.0,
+      "value_paise": 6430000,
+      "outstanding_paise": 6430000,
       "is_real": true
     },
     {
@@ -154,9 +165,10 @@
       "ref_no": "HC/26/231",
       "bill_date": "10-05-2026",
       "credit_term": "Net 30",
+      "term_verified": true,
       "final_date": "09-06-2026",
-      "value": 211000.0,
-      "outstanding": 211000.0,
+      "value_paise": 21100000,
+      "outstanding_paise": 21100000,
       "is_real": true
     }
   ],
@@ -169,9 +181,10 @@
       "ref_no": "INV-2026/204",
       "bill_date": "04-05-2026",
       "credit_term": "Net 30",
+      "term_verified": true,
       "final_date": "03-06-2026",
-      "value": 1480000.0,
-      "outstanding": 1480000.0,
+      "value_paise": 148000000,
+      "outstanding_paise": 148000000,
       "is_real": true
     },
     {
@@ -182,9 +195,10 @@
       "ref_no": "INV-2026/219",
       "bill_date": "22-05-2026",
       "credit_term": "Net 15",
+      "term_verified": true,
       "final_date": "06-06-2026",
-      "value": 268000.0,
-      "outstanding": 268000.0,
+      "value_paise": 26800000,
+      "outstanding_paise": 26800000,
       "is_real": true
     },
     {
@@ -195,9 +209,10 @@
       "ref_no": "INV-2026/233",
       "bill_date": "28-05-2026",
       "credit_term": "Net 21",
+      "term_verified": true,
       "final_date": "18-06-2026",
-      "value": 642000.0,
-      "outstanding": 642000.0,
+      "value_paise": 64200000,
+      "outstanding_paise": 64200000,
       "is_real": true
     },
     {
@@ -208,9 +223,10 @@
       "ref_no": "INV-2026/241",
       "bill_date": "30-05-2026",
       "credit_term": "Due on receipt",
+      "term_verified": false,
       "final_date": "30-05-2026",
-      "value": 88500.0,
-      "outstanding": 88500.0,
+      "value_paise": 8850000,
+      "outstanding_paise": 8850000,
       "is_real": true
     },
     {
@@ -221,9 +237,10 @@
       "ref_no": "INV-2026/255",
       "bill_date": "27-04-2026",
       "credit_term": "Net 45",
+      "term_verified": true,
       "final_date": "11-06-2026",
-      "value": 1955000.0,
-      "outstanding": 700000.0,
+      "value_paise": 195500000,
+      "outstanding_paise": 70000000,
       "is_real": true
     },
     {
@@ -234,9 +251,10 @@
       "ref_no": "INV-2026/261",
       "bill_date": "26-05-2026",
       "credit_term": "Net 7",
+      "term_verified": true,
       "final_date": "02-06-2026",
-      "value": 19800.0,
-      "outstanding": 19800.0,
+      "value_paise": 1980000,
+      "outstanding_paise": 1980000,
       "is_real": true
     },
     {
@@ -247,9 +265,10 @@
       "ref_no": "INV-2026/270",
       "bill_date": "18-05-2026",
       "credit_term": "Net 30",
+      "term_verified": true,
       "final_date": "17-06-2026",
-      "value": 134000.0,
-      "outstanding": 134000.0,
+      "value_paise": 13400000,
+      "outstanding_paise": 13400000,
       "is_real": true
     },
     {
@@ -260,9 +279,10 @@
       "ref_no": "INV-2026/288",
       "bill_date": "31-05-2026",
       "credit_term": "Due on receipt",
+      "term_verified": false,
       "final_date": "31-05-2026",
-      "value": 47300.0,
-      "outstanding": 47300.0,
+      "value_paise": 4730000,
+      "outstanding_paise": 4730000,
       "is_real": true
     }
   ]
