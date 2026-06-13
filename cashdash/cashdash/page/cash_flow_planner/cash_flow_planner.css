@@ -241,6 +241,7 @@
 .cfp-app .placed .ptop{display:flex; align-items:center; gap:6px; margin-bottom:4px;}
 .cfp-app .placed .ptag{font-family:var(--f-num); font-size:8px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:1px 5px; border-radius:3px;}
 .cfp-app .placed .ptag.auto{background:var(--sel-tint); color:var(--sel);}
+.cfp-app .placed .ptag.planned{background:var(--fin-tint); color:var(--fin);}
 .cfp-app .placed .ptag.user{background:var(--in-tint); color:var(--in);}
 .cfp-app .placed.pay .ptag.user{background:var(--out-tint); color:var(--out);}
 .cfp-app .placed .pname{font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
@@ -281,6 +282,22 @@
 .cfp-app .ledger .dbill{color:var(--faint); font-size:10px;}
 .cfp-app .ledger .dfinal{font-weight:600; margin-top:1px;}
 .cfp-app .odbadge{display:inline-block; font-size:9px; font-weight:700; color:#fff; background:var(--out); padding:1px 6px; border-radius:var(--r-pill);}
+.cfp-app .ledger .dfinal.moved{color:var(--fin);}
+.cfp-app .ledger .was-date{font-size:9px; color:var(--faint); text-decoration:line-through; margin-top:1px;}
+
+/* ---- Credit-term provenance badge (clickable = edit affordance) ---- */
+.cfp-app .term-edit{cursor:pointer; border-bottom:1px dashed var(--sel-line); }
+.cfp-app .term-edit:hover{filter:brightness(1.1);}
+.cfp-app .term-badge{display:inline-block; cursor:pointer; font-size:9px; font-weight:700; letter-spacing:.03em;
+	padding:1px 6px; border-radius:var(--r-pill); border:1px solid transparent; white-space:nowrap; vertical-align:middle;}
+.cfp-app .term-badge.unverified{background:var(--out-tint); color:var(--out); border-color:var(--out-line);}
+.cfp-app .term-badge.corrected{background:var(--sel-tint); color:var(--sel); border-color:var(--sel-line);}
+.cfp-app .term-badge.moved{background:var(--fin-tint); color:var(--fin); border-color:var(--fin-line);}
+.cfp-app .term-badge:hover{filter:brightness(1.06);}
+
+/* ---- Draft/shared concurrency: 'shared board moved' chip ---- */
+.cfp-app .behind-chip{color:var(--out); border-color:var(--out-line); background:var(--out-tint); font-weight:700;}
+.cfp-app .behind-chip:hover{filter:brightness(1.04);}
 
 /* ---- Toast ---- */
 .cfp-app .cfp-toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--surface); padding:9px 16px; border-radius:var(--r-pill); font-size:12.5px; font-weight:600; box-shadow:var(--grab-shadow); z-index:2000;}

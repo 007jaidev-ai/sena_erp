@@ -262,9 +262,11 @@ def build_records(conn):
 
     payables, receivables = [], []
     no_term = 0
+    skipped_unclassified = 0
     for (ledger, bill), o in sorted(inscope.items()):
         side = classify(ledger)
         if side is None:
+            skipped_unclassified += 1
             continue  # not a debtor/creditor ledger — skip defensively
         t = terms.get((ledger, bill), {})
         days = t.get("days", 0)
@@ -273,9 +275,14 @@ def build_records(conn):
         if days and bill_date:
             final_str = (bill_date + timedelta(days=days)).strftime("%d-%m-%Y")
             credit_term = "Net %d" % days
+            term_verified = True
         else:
+            # Best-effort fallback: EITHER a genuinely term-less bill OR one whose
+            # term we couldn't match in the XML. We can't tell them apart here, so
+            # mark it UNVERIFIED and let the planner flag it for human confirmation.
             final_str = bill_date_str
             credit_term = "Due on receipt"
+            term_verified = False
             no_term += 1
 
         rec = {
@@ -285,9 +292,13 @@ def build_records(conn):
             "ref_no": bill,
             "bill_date": bill_date_str,
             "credit_term": credit_term,
-            "final_date": final_str,
-            "value": round(o["value"], 2),
-            "outstanding": round(abs(net[(ledger, bill)]), 2),
+            # Provenance: True only when a real Tally credit period was matched.
+            # The planner badges unverified terms and lets the user correct them.
+            "term_verified": term_verified,
+            # Money as INTEGER PAISE (₹1 = 100). The planner sums money as integer
+            # paise end to end, so amounts never round-trip through a rupee float.
+            "value_paise": int(round(o["value"] * 100)),
+            "outstanding_paise": int(round(abs(net[(ledger, bill)]) * 100)),
             "is_real": True,
         }
         (receivables if side == "RECEIVABLE" else payables).append(rec)
@@ -298,10 +309,38 @@ def build_records(conn):
     for i, r in enumerate(receivables, 1):
         r["name"] = "TLY-R-%05d" % i
 
+    written = len(payables) + len(receivables)
+    verified = sum(1 for r in payables + receivables if r["term_verified"])
     sys.stderr.write(
         "Built %d payables + %d receivables (%d without a real term).\n"
         % (len(payables), len(receivables), no_term)
     )
+
+    # --- Self-check: extracted (in-scope) count vs rows actually written. A drift
+    # here means bills are being silently lost — surface it loudly rather than
+    # shipping an undercount that looks complete. ---
+    expected = len(inscope)
+    accounted = written + skipped_unclassified
+    if accounted != expected:
+        sys.stderr.write(
+            "  ⚠ SELF-CHECK: in-scope=%d but accounted=%d (written=%d, "
+            "skipped_unclassified=%d) — %d bills unaccounted for!\n"
+            % (expected, accounted, written, skipped_unclassified, expected - accounted)
+        )
+    if skipped_unclassified:
+        sys.stderr.write(
+            "  ⚠ SELF-CHECK: %d in-scope bills skipped (ledger not under Sundry "
+            "Debtors/Creditors) — check the group-chain classifier.\n" % skipped_unclassified
+        )
+    if written:
+        unverified = written - verified
+        pct = 100.0 * unverified / written
+        flag = "  ⚠ " if pct >= 25 else "  "
+        sys.stderr.write(
+            "%sTerm coverage: %d/%d verified, %d unverified (%.0f%%). Unverified "
+            "render as 'Due on receipt' for the user to confirm/correct.\n"
+            % (flag, verified, written, unverified, pct)
+        )
 
     return {
         "company": company,
@@ -326,8 +365,9 @@ def main():
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, "w") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
-    pay = sum(r["outstanding"] for r in data["payables"]) / 1e5
-    rec = sum(r["outstanding"] for r in data["receivables"]) / 1e5
+    # outstanding_paise is integer paise; ÷1e7 → lakhs of rupees for the summary.
+    pay = sum(r["outstanding_paise"] for r in data["payables"]) / 1e7
+    rec = sum(r["outstanding_paise"] for r in data["receivables"]) / 1e7
     sys.stderr.write(
         "Wrote %s\n  payable outstanding ~Rs %.1fL | receivable outstanding ~Rs %.1fL\n"
         % (out_path, pay, rec)
